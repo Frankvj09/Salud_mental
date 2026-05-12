@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-clipboard-list"></i> Tests de Salud Mental</h2>
+        <p class="lead">Realiza estos tests para evaluar tu estado emocional actual.</p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    {% for test in tests %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">{{ test.nombre_test }}</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ test.descripcion }}</p>
+                <p class="text-muted small">
+                    <i class="fas fa-clock"></i> Tiempo estimado: 3-5 minutos
+                </p>
+            </div>
+            <div class="card-footer bg-white">
+                <a href="{{ url_for('realizar_test', test_id=test.id) }}" class="btn btn-primary w-100">
+                    <i class="fas fa-play"></i> Realizar test
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Tests realizados</h5>
+            </div>
+            <div class="card-body">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('resultados_test') }}" class="btn btn-outline-info">
+                        Ver historial de resultados
+                    </a>
+                {% else %}
+                    <p>Inicia sesión para ver tu historial de tests.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

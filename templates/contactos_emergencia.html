@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-phone-alt"></i> Contactos de Emergencia</h2>
+        <p class="lead">Personas que pueden ayudarte en momentos de crisis.</p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card bg-danger text-white mb-4">
+            <div class="card-body text-center">
+                <i class="fas fa-phone-alt fa-3x mb-3"></i>
+                <h5 class="card-title">Línea de Crisis</h5>
+                <p class="card-text display-6">0800-XXX-XXXX</p>
+                <p class="small">Disponible 24/7</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-warning mb-4">
+            <div class="card-body text-center">
+                <i class="fas fa-ambulance fa-3x mb-3"></i>
+                <h5 class="card-title">Emergencias</h5>
+                <p class="card-text display-6">123</p>
+                <p class="small">Emergencias médicas</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-info text-white mb-4">
+            <div class="card-body text-center">
+                <i class="fas fa-heart fa-3x mb-3"></i>
+                <h5 class="card-title">Apoyo emocional</h5>
+                <p class="card-text display-6">*4141</p>
+                <p class="small">Línea de prevención del suicidio</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-address-book"></i> Mis contactos de confianza</h5>
+                <button class="btn btn-light btn-sm" onclick="agregarContacto()">
+                    <i class="fas fa-plus"></i> Agregar contacto
+                </button>
+            </div>
+            <div class="card-body">
+                {% if contactos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Prioridad</th>
+                                    <th>Nombre</th>
+                                    <th>Teléfono</th>
+                                    <th>Parentesco</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contacto in contactos %}
+                                <tr>
+                                    <td>
+                                        {% if contacto.orden_prioridad == 1 %}
+                                            <span class="badge bg-danger">Principal</span>
+                                        {% elif contacto.orden_prioridad == 2 %}
+                                            <span class="badge bg-warning">Secundario</span>
+                                        {% else %}
+                                            <span class="badge bg-info">{{ contacto.orden_prioridad }}°</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ contacto.nombre_contacto }}</td>
+                                    <td>{{ contacto.telefono }}</td>
+                                    <td>{{ contacto.parentesco }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-success" onclick="llamarContacto('{{ contacto.telefono }}')">
+                                            <i class="fas fa-phone"></i> Llamar
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="eliminarContacto('{{ contacto.id }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        No tienes contactos de emergencia registrados. 
+                        <a href="#" onclick="agregarContacto()">Agrega uno ahora</a>.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Botón de pánico</h5>
+            </div>
+            <div class="card-body text-center">
+                <p>En caso de emergencia, este botón notificará a tus contactos de confianza.</p>
+                <button class="btn btn-danger btn-lg" onclick="activarPanico()">
+                    <i class="fas fa-exclamation-triangle"></i> ACTIVAR BOTÓN DE PÁNICO
+                </button>
+                <p class="text-muted small mt-3">
+                    Al activar, se enviará un mensaje de ayuda a tus contactos registrados.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar contacto -->
+<div class="modal fade" id="agregarContactoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Agregar contacto de emergencia</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formContacto">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre completo</label>
+                        <input type="text" class="form-control" id="contactoNombre" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="tel" class="form-control" id="contactoTelefono" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Parentesco</label>
+                        <select class="form-select" id="contactoParentesco">
+                            <option>Familiar</option>
+                            <option>Amigo/a</option>
+                            <option>Pareja</option>
+                            <option>Psicólogo/a</option>
+                            <option>Otro</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Prioridad</label>
+                        <select class="form-select" id="contactoPrioridad">
+                            <option value="1">1 - Principal (Contacto de emergencia principal)</option>
+                            <option value="2">2 - Secundario</option>
+                            <option value="3">3 - Terciario</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarContacto()">Guardar contacto</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function agregarContacto() {
+        let modal = new bootstrap.Modal(document.getElementById('agregarContactoModal'));
+        modal.show();
+    }
+    
+    function guardarContacto() {
+        let nombre = document.getElementById('contactoNombre').value;
+        let telefono = document.getElementById('contactoTelefono').value;
+        
+        if (!nombre || !telefono) {
+            alert('Por favor completa todos los campos requeridos');
+            return;
+        }
+        
+        // Aquí iría la lógica para guardar en la base de datos
+        alert('Función de guardar contacto en desarrollo. Próximamente disponible.');
+        
+        // Cerrar modal
+        bootstrap.Modal.getInstance(document.getElementById('agregarContactoModal')).hide();
+    }
+    
+    function llamarContacto(telefono) {
+        window.location.href = 'tel:' + telefono;
+    }
+    
+    function eliminarContacto(id) {
+        if (confirm('¿Estás seguro de eliminar este contacto?')) {
+            alert('Función de eliminar contacto en desarrollo');
+        }
+    }
+    
+    function activarPanico() {
+        if (confirm('¿Estás seguro? Se notificará a tus contactos de emergencia.')) {
+            alert('ALERTA ENVIADA. Próximamente se implementará el envío real de notificaciones.');
+        }
+    }
+</script>
+{% endblock %}

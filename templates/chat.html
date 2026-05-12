@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-comments"></i> Chat de Orientación Psicológica</h2>
+        <p class="lead">Conecta con psicólogos profesionales en un espacio seguro y confidencial.</p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Psicólogos disponibles</h5>
+            </div>
+            <div class="card-body">
+                {% if psicologos %}
+                    <div class="list-group">
+                        {% for psicologo in psicologos %}
+                            <a href="{{ url_for('iniciar_chat', psicologo_id=psicologo.id) }}" 
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ psicologo.nombre }}</h6>
+                                    <small><i class="fas fa-circle text-success"></i> Disponible</small>
+                                </div>
+                                <p class="mb-1">{{ psicologo.especialidad }}</p>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No hay psicólogos disponibles en este momento.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Información importante</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check-circle text-success"></i> Confidencialidad garantizada</li>
+                    <li><i class="fas fa-check-circle text-success"></i> Profesionales certificados</li>
+                    <li><i class="fas fa-check-circle text-success"></i> Sin costo</li>
+                    <li><i class="fas fa-check-circle text-success"></i> Disponible 24/7</li>
+                </ul>
+                <hr>
+                <p class="small text-muted">
+                    Si estás en crisis, llama a la línea de emergencia: <strong>0800-XXX-XXXX</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">¿Cómo funciona?</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="text-center mb-3">
+                            <i class="fas fa-user-plus fa-3x text-primary"></i>
+                            <h6>1. Selecciona un psicólogo</h6>
+                            <p>Elige el profesional que mejor se adapte a tus necesidades</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-center mb-3">
+                            <i class="fas fa-comment-dots fa-3x text-primary"></i>
+                            <h6>2. Inicia la conversación</h6>
+                            <p>Comienza a escribir y el psicólogo te responderá</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-center mb-3">
+                            <i class="fas fa-clock fa-3x text-primary"></i>
+                            <h6>3. Conversa sin límite</h6>
+                            <p>Tómate el tiempo que necesites para expresarte</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-center mb-3">
+                            <i class="fas fa-star fa-3x text-primary"></i>
+                            <h6>4. Valora la atención</h6>
+                            <p>Comparte tu experiencia para ayudar a otros</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Importante:</strong> Este chat no reemplaza una terapia profesional continua. 
+                    Si tienes pensamientos suicidas, busca ayuda inmediata.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

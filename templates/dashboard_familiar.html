@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-users"></i> Panel del Familiar</h2>
+        <p class="lead">Monitorea el bienestar de tus seres queridos y recibe alertas oportunas.</p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-bell"></i> Alertas Activas</h5>
+            </div>
+            <div class="card-body">
+                <div id="alertasFamiliares">
+                    <!-- Se llena con JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-heart"></i> Personas que Sigo</h5>
+                <button class="btn btn-sm btn-light" onclick="agregarFamiliar()">
+                    <i class="fas fa-plus"></i> Agregar
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="listaFamiliares">
+                    <!-- Se llena con JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Resumen</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <h3 id="totalAlertasActivas">0</h3>
+                    <p>Alertas activas</p>
+                    <hr>
+                    <h3 id="totalPersonasSeguimiento">0</h3>
+                    <p>Personas en seguimiento</p>
+                    <hr>
+                    <h3 id="ultimaAlerta">-</h3>
+                    <p>Última alerta</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Recomendaciones</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">✓ Mantén comunicación frecuente</li>
+                    <li class="mb-2">✓ Pregunta cómo se siente</li>
+                    <li class="mb-2">✓ Escucha sin juzgar</li>
+                    <li class="mb-2">✓ Ofrece compañía</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function cargarAlertasFamiliares() {
+        fetch('/api/familiar/alertas')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('alertasFamiliares');
+                const totalActivas = data.alertas.filter(a => a.estado === 'activa').length;
+                document.getElementById('totalAlertasActivas').textContent = totalActivas;
+                
+                if (data.alertas && data.alertas.length > 0) {
+                    container.innerHTML = '';
+                    data.alertas.forEach(alerta => {
+                        if (alerta.estado === 'activa') {
+                            container.innerHTML += `
+                                <div class="alert alert-${alerta.nivel_alerta === 'urgente' ? 'danger' : alerta.nivel_alerta === 'precaucion' ? 'warning' : 'info'} alert-dismissible">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>⚠️ ${alerta.usuario_nombre}</strong>
+                                        <small>${alerta.fecha_generacion}</small>
+                                    </div>
+                                    <p class="mt-2">${alerta.mensaje}</p>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-success" onclick="marcarAtendida(${alerta.id})">
+                                            <i class="fas fa-check"></i> Ya lo contacté
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="llamarEmergencia('${alerta.usuario_telefono}')">
+                                            <i class="fas fa-phone"></i> Llamar ahora
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle fa-3x mb-2"></i>
+                            <p>No hay alertas activas. ¡Todo tranquilo!</p>
+                        </div>
+                    `;
+                }
+                
+                if (data.alertas.length > 0) {
+                    document.getElementById('ultimaAlerta').textContent = data.alertas[0].fecha_generacion;
+                }
+            });
+    }
+    
+    function cargarFamiliares() {
+        fetch('/api/familiar/seguimiento')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('listaFamiliares');
+                document.getElementById('totalPersonasSeguimiento').textContent = data.familiares.length;
+                
+                if (data.familiares && data.familiares.length > 0) {
+                    container.innerHTML = '';
+                    data.familiares.forEach(familiar => {
+                        container.innerHTML += `
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>${familiar.nombre}</strong>
+                                        <p class="mb-0 small text-muted">Último test: ${familiar.ultimo_test || 'No realizado'}</p>
+                                    </div>
+                                    <div>
+                                        <span class="badge ${familiar.nivel_riesgo === 'alto' ? 'bg-danger' : familiar.nivel_riesgo === 'moderado' ? 'bg-warning' : 'bg-success'}">
+                                            Riesgo ${familiar.nivel_riesgo || 'bajo'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-user-plus fa-2x mb-2"></i>
+                            <p>Aún no sigues a nadie. Agrega a tus seres queridos.</p>
+                        </div>
+                    `;
+                }
+            });
+    }
+    
+    function agregarFamiliar() {
+        const email = prompt('Ingresa el email de la persona que quieres seguir:');
+        if (email) {
+            fetch('/api/familiar/agregar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email: email})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Persona agregada al seguimiento');
+                    cargarFamiliares();
+                } else {
+                    alert(data.error || 'No se pudo agregar. Verifica el email.');
+                }
+            });
+        }
+    }
+    
+    function marcarAtendida(alertaId) {
+        fetch(`/api/familiar/atender_alerta/${alertaId}`, {method: 'POST'})
+            .then(() => cargarAlertasFamiliares());
+    }
+    
+    function llamarEmergencia(telefono) {
+        window.location.href = `tel:${telefono}`;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarAlertasFamiliares();
+        cargarFamiliares();
+        
+        setInterval(() => {
+            cargarAlertasFamiliares();
+        }, 15000);
+    });
+</script>
+{% endblock %}

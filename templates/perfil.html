@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-user-circle"></i> Mi Perfil</h2>
+        <p class="lead">Gestiona tu información personal y preferencias.</p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white text-center">
+                <h5 class="mb-0">Foto de perfil</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-user-circle fa-6x text-primary"></i>
+                </div>
+                <button class="btn btn-outline-primary" disabled>
+                    <i class="fas fa-camera"></i> Cambiar foto
+                </button>
+                <p class="text-muted small mt-2">Próximamente</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-edit"></i> Información personal</h5>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre completo</label>
+                        <input type="text" class="form-control" value="{{ usuario.nombre }}" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" value="{{ usuario.email }}" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="text" class="form-control" value="{{ usuario.telefono or 'No especificado' }}" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de usuario</label>
+                        <input type="text" class="form-control" value="{{ usuario.tipo_usuario|title }}" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de registro</label>
+                        <input type="text" class="form-control" value="{{ usuario.fecha_registro.strftime('%d/%m/%Y') }}" readonly>
+                    </div>
+                    
+                    <button type="button" class="btn btn-warning" disabled>
+                        <i class="fas fa-edit"></i> Editar perfil (Próximamente)
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        {% if info_psicologo %}
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-briefcase"></i> Información profesional</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Especialidad:</strong> {{ info_psicologo.especialidad }}</p>
+                        <p><strong>Cédula profesional:</strong> {{ info_psicologo.cedula_profesional }}</p>
+                        <p><strong>Años de experiencia:</strong> {{ info_psicologo.experiencia_anos }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Tarifa:</strong> ${{ info_psicologo.tarifa|default('No especificada') }}</p>
+                        <p><strong>Calificación:</strong> {{ info_psicologo.calificacion_promedio }}/5</p>
+                    </div>
+                </div>
+                <p><strong>Descripción:</strong> {{ info_psicologo.descripcion }}</p>
+                <p><strong>Disponibilidad:</strong> {{ info_psicologo.disponibilidad }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Seguridad</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-outline-primary" disabled>
+                    <i class="fas fa-key"></i> Cambiar contraseña (Próximamente)
+                </button>
+                <button class="btn btn-outline-danger" disabled>
+                    <i class="fas fa-lock"></i> Configurar 2FA (Próximamente)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

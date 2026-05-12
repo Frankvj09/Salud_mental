@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-comment"></i> Conversación</h5>
+                <a href="{{ url_for('chat') }}" class="btn btn-sm btn-light">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+            <div class="card-body" style="height: 500px; overflow-y: auto;" id="chat-messages">
+                {% for mensaje in mensajes %}
+                    <div class="message mb-3 {% if mensaje.remitente_id == current_user.id %}text-end{% endif %}">
+                        <div class="d-inline-block {% if mensaje.remitente_id == current_user.id %}bg-primary text-white{% else %}bg-light{% endif %} rounded p-2" style="max-width: 70%;">
+                            <small class="d-block {% if mensaje.remitente_id == current_user.id %}text-white-50{% else %}text-muted{% endif %}">
+                                {{ mensaje.remitente_nombre }} - {{ mensaje.fecha_envio.strftime('%H:%M') }}
+                            </small>
+                            <p class="mb-0">{{ mensaje.mensaje }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="card-footer">
+                <form id="message-form" class="input-group">
+                    <input type="text" class="form-control" id="message-input" placeholder="Escribe tu mensaje..." autocomplete="off">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-paper-plane"></i> Enviar
+                    </button>
+                </form>
+                <small class="text-muted mt-2 d-block">
+                    <i class="fas fa-info-circle"></i> Tu conversación es confidencial
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var socket = io();
+        var conversationId = {{ conversacion_id }};
+        var username = "{{ current_user.nombre }}";
+        
+        // Unirse a la sala de chat
+        socket.emit('join', {conversacion_id: conversationId});
+        
+        // Manejar envío de mensajes
+        document.getElementById('message-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var messageInput = document.getElementById('message-input');
+            var message = messageInput.value.trim();
+            
+            if (message) {
+                socket.emit('message', {
+                    conversacion_id: conversationId,
+                    message: message
+                });
+                messageInput.value = '';
+            }
+        });
+        
+        // Recibir mensajes
+        socket.on('message', function(data) {
+            var messagesDiv = document.getElementById('chat-messages');
+            var messageDiv = document.createElement('div');
+            messageDiv.className = 'message mb-3 ' + (data.user === username ? 'text-end' : '');
+            messageDiv.innerHTML = `
+                <div class="d-inline-block ${data.user === username ? 'bg-primary text-white' : 'bg-light'} rounded p-2" style="max-width: 70%;">
+                    <small class="d-block ${data.user === username ? 'text-white-50' : 'text-muted'}">
+                        ${data.user} - ${data.timestamp.split(' ')[1]}
+                    </small>
+                    <p class="mb-0">${data.message}</p>
+                </div>
+            `;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+        
+        // Notificaciones de estado
+        socket.on('status', function(data) {
+            console.log(data.msg);
+        });
+        
+        // Scroll al fondo al cargar
+        var messagesDiv = document.getElementById('chat-messages');
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+</script>
+{% endblock %}

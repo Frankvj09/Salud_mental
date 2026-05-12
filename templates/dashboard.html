@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="fas fa-home"></i> Bienvenido, {{ current_user.nombre }}</h2>
+        <p class="lead">¿Cómo te sientes hoy? Estamos aquí para apoyarte.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-3">
+        <a href="{{ url_for('chat') }}" class="card dashboard-card text-center h-100">
+            <div class="card-body">
+                <i class="fas fa-comments fa-4x text-primary mb-3"></i>
+                <h5 class="card-title">Chat de Apoyo</h5>
+                <p class="card-text">Habla con un psicólogo ahora mismo</p>
+                <span class="badge bg-success">Disponible 24/7</span>
+            </div>
+        </a>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <a href="{{ url_for('test') }}" class="card dashboard-card text-center h-100">
+            <div class="card-body">
+                <i class="fas fa-clipboard-list fa-4x text-success mb-3"></i>
+                <h5 class="card-title">Tests</h5>
+                <p class="card-text">Evalúa tu salud mental</p>
+                <span class="badge bg-info">Resultados inmediatos</span>
+            </div>
+        </a>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <a href="{{ url_for('directorio_psicologos') }}" class="card dashboard-card text-center h-100">
+            <div class="card-body">
+                <i class="fas fa-user-md fa-4x text-warning mb-3"></i>
+                <h5 class="card-title">Psicólogos</h5>
+                <p class="card-text">Encuentra profesionales cerca de ti</p>
+                <span class="badge bg-primary">Directorio completo</span>
+            </div>
+        </a>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <a href="{{ url_for('contactos_emergencia') }}" class="card dashboard-card text-center h-100">
+            <div class="card-body">
+                <i class="fas fa-phone-alt fa-4x text-danger mb-3"></i>
+                <h5 class="card-title">Emergencia</h5>
+                <p class="card-text">Contactos de ayuda inmediata</p>
+                <span class="badge bg-danger">24/7</span>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Tu progreso</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="progresoChart" width="400" height="200"></canvas>
+                <p class="text-muted mt-3 text-center">Próximamente: Visualización de tu evolución</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Consejos para hoy</h5>
+            </div>
+            <div class="card-body">
+                <div id="consejoDelDia">
+                    <p><i class="fas fa-quote-left text-primary"></i> 
+                    Respira profundo. Tómate 5 minutos para ti.
+                    <i class="fas fa-quote-right text-primary"></i></p>
+                </div>
+                <button class="btn btn-outline-primary btn-sm" onclick="nuevoConsejo()">
+                    <i class="fas fa-sync-alt"></i> Nuevo consejo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function nuevoConsejo() {
+    const consejos = [
+        "Respira profundo. Tómate 5 minutos para ti.",
+        "Hoy es un buen día para hablar de cómo te sientes.",
+        "No estás solo. Hay personas que se preocupan por ti.",
+        "Pequeños pasos también son progreso.",
+        "Está bien no estar bien. Lo importante es buscar ayuda.",
+        "Tus sentimientos son válidos.",
+        "Hoy puede ser el día para dar el primer paso."
+    ];
+
+    const random = Math.floor(Math.random() * consejos.length);
+
+    document.querySelector('#consejoDelDia p').innerHTML =
+        '<i class="fas fa-quote-left text-primary"></i> ' +
+        consejos[random] +
+        ' <i class="fas fa-quote-right text-primary"></i>';
+}
+</script>
+{% endblock %}

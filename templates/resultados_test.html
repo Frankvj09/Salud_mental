@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-chart-bar"></i> Historial de Resultados</h2>
+        <p class="lead">Revisa tus evaluaciones anteriores y tu progreso.</p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        {% if resultados %}
+            {% for resultado in resultados %}
+            <div class="card mb-3 
+                {% if resultado.nivel_riesgo == 'alto' %}border-danger
+                {% elif resultado.nivel_riesgo == 'moderado' %}border-warning
+                {% else %}border-success{% endif %}">
+                <div class="card-header 
+                    {% if resultado.nivel_riesgo == 'alto' %}bg-danger text-white
+                    {% elif resultado.nivel_riesgo == 'moderado' %}bg-warning
+                    {% else %}bg-success text-white{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ resultado.nombre_test }}</h5>
+                        <small>{{ resultado.fecha_realizacion.strftime('%d/%m/%Y %H:%M') }}</small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Puntuación</h6>
+                            <p class="display-4">{{ resultado.puntuacion_total }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Nivel de Riesgo</h6>
+                            <span class="badge 
+                                {% if resultado.nivel_riesgo == 'alto' %}bg-danger
+                                {% elif resultado.nivel_riesgo == 'moderado' %}bg-warning
+                                {% else %}bg-success{% endif %} fs-6">
+                                {{ resultado.nivel_riesgo|upper }}
+                            </span>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Recomendaciones</h6>
+                            <p>{{ resultado.recomendaciones }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if resultado.nivel_riesgo == 'alto' %}
+                    <div class="alert alert-danger mt-3">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>IMPORTANTE:</strong> Este resultado indica que deberías buscar ayuda profesional 
+                        lo antes posible. No estás solo, hay personas dispuestas a ayudarte.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                No has realizado ningún test aún. 
+                <a href="{{ url_for('test') }}" class="alert-link">Realiza tu primer test</a>.
+            </div>
+        {% endif %}
+        
+        <div class="text-center mt-4">
+            <a href="{{ url_for('test') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle"></i> Realizar nuevo test
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

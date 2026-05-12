@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row align-items-center">
+    <div class="col-md-6">
+        <h1 class="display-4">Bienvenido a tu espacio de apoyo emocional</h1>
+        <p class="lead">No estás solo. Estamos aquí para escucharte y apoyarte en tu bienestar mental.</p>
+        <hr class="my-4">
+        <p>Ofrecemos herramientas y recursos para ayudarte a cuidar tu salud mental:</p>
+        <ul class="list-group list-group-flush mb-4">
+            <li class="list-group-item"><i class="fas fa-comments text-primary"></i> Chat de orientación psicológica</li>
+            <li class="list-group-item"><i class="fas fa-clipboard-check text-primary"></i> Tests de salud mental</li>
+            <li class="list-group-item"><i class="fas fa-user-md text-primary"></i> Directorio de psicólogos</li>
+            <li class="list-group-item"><i class="fas fa-bell text-primary"></i> Sistema de alertas para familiares</li>
+        </ul>
+        {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('registro') }}" class="btn btn-primary btn-lg">Comenzar ahora</a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">Iniciar sesión</a>
+        {% endif %}
+    </div>
+    <div class="col-md-6">
+        <img src="https://via.placeholder.com/500x400" alt="Apoyo emocional" class="img-fluid rounded">
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-comments fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Chat de Orientación</h5>
+                <p class="card-text">Conversa con psicólogos profesionales en un espacio seguro y confidencial.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-clipboard-list fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Tests de Salud Mental</h5>
+                <p class="card-text">Evalúa tu estado emocional con tests validados científicamente.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-phone-alt fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Ayuda Inmediata</h5>
+                <p class="card-text">Accede a contactos de emergencia y líneas de crisis 24/7.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5 bg-light p-4 rounded">
+    <div class="col-12 text-center">
+        <h3>¿Necesitas hablar con alguien ahora?</h3>
+        <p class="lead">Nuestros psicólogos están disponibles para escucharte.</p>
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('chat') }}" class="btn btn-success btn-lg">
+                <i class="fas fa-comment"></i> Iniciar chat ahora
+            </a>
+        {% else %}
+            <a href="{{ url_for('registro') }}" class="btn btn-success btn-lg">
+                <i class="fas fa-comment"></i> Registrarse para chat
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

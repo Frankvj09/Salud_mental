@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-exclamation-triangle"></i> Sistema de Alertas</h2>
+        <p class="lead">Monitoreo y seguimiento de situaciones que requieren atención.</p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-bell"></i> Alertas activas</h5>
+                <span class="badge bg-light text-dark">{{ alertas|length }} alerta(s)</span>
+            </div>
+            <div class="card-body">
+                {% if alertas %}
+                    <div class="list-group">
+                        {% for alerta in alertas %}
+                        <div class="list-group-item list-group-item-action 
+                            {% if alerta.nivel_alerta == 'urgente' %}alerta-urgente
+                            {% elif alerta.nivel_alerta == 'precaucion' %}alerta-precaucion
+                            {% else %}alerta-informativo{% endif %}">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">
+                                    {% if alerta.nivel_alerta == 'urgente' %}
+                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                    {% elif alerta.nivel_alerta == 'precaucion' %}
+                                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                                    {% else %}
+                                        <i class="fas fa-info-circle text-info"></i>
+                                    {% endif %}
+                                    Alerta: {{ alerta.tipo_alerta|replace('_', ' ')|title }}
+                                </h5>
+                                <small class="text-muted">{{ alerta.fecha_generacion.strftime('%d/%m/%Y %H:%M') }}</small>
+                            </div>
+                            <p class="mb-1">{{ alerta.mensaje }}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-user"></i> Usuario: {{ alerta.usuario_nombre }}
+                                </small>
+                                <span class="badge 
+                                    {% if alerta.nivel_alerta == 'urgente' %}bg-danger
+                                    {% elif alerta.nivel_alerta == 'precaucion' %}bg-warning
+                                    {% else %}bg-info{% endif %}">
+                                    {{ alerta.nivel_alerta|upper }}
+                                </span>
+                            </div>
+                            {% if alerta.estado == 'activa' %}
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-success" onclick="atenderAlerta({{ alerta.id }})">
+                                    <i class="fas fa-check-circle"></i> Marcar como atendida
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="contactarUsuario({{ alerta.usuario_id }})">
+                                    <i class="fas fa-phone-alt"></i> Contactar usuario
+                                </button>
+                            </div>
+                            {% else %}
+                            <div class="mt-2">
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-check"></i> Atendida: {{ alerta.fecha_atencion.strftime('%d/%m/%Y %H:%M') }}
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        No hay alertas activas en este momento. ¡Todo tranquilo!
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Estadísticas</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="alertasChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Acciones rápidas</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <a href="{{ url_for('directorio_psicologos') }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-user-md"></i> Contactar psicólogo de guardia
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <button class="btn btn-outline-danger w-100" onclick="window.location.href='tel:0800XXX'">
+                            <i class="fas fa-phone-alt"></i> Llamar a línea de crisis
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    function atenderAlerta(alertaId) {
+        if (confirm('¿Marcar esta alerta como atendida?')) {
+            fetch('/atender_alerta/' + alertaId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error al atender la alerta');
+                }
+            });
+        }
+    }
+    
+    function contactarUsuario(usuarioId) {
+        // Aquí iría la lógica para contactar al usuario
+        alert('Función para contactar usuario en desarrollo');
+    }
+    
+    // Gráfico de alertas
+    document.addEventListener('DOMContentLoaded', function() {
+        let ctx = document.getElementById('alertasChart').getContext('2d');
+        let chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Urgentes', 'Precaución', 'Informativas'],
+                datasets: [{
+                    data: [
+                        {{ alertas|selectattr('nivel_alerta', 'equalto', 'urgente')|list|length }},
+                        {{ alertas|selectattr('nivel_alerta', 'equalto', 'precaucion')|list|length }},
+                        {{ alertas|selectattr('nivel_alerta', 'equalto', 'informativo')|list|length }}
+                    ],
+                    backgroundColor: ['#dc3545', '#ffc107', '#17a2b8']
+                }]
+            }
+        });
+    });
+</script>
+{% endblock %}

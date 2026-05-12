@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-clipboard-list"></i> {{ test.nombre_test }}</h2>
+        <p class="lead">{{ test.descripcion }}</p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Instrucciones</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ test.instrucciones }}</p>
+                <p class="text-muted small">
+                    <i class="fas fa-info-circle"></i> Responde con honestidad. No hay respuestas correctas o incorrectas.
+                </p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('enviar_test') }}" class="mt-4">
+            <input type="hidden" name="test_id" value="{{ test.id }}">
+            
+            {% for pregunta in preguntas %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">Pregunta {{ loop.index }}</h6>
+                    <p class="card-text">{{ pregunta.pregunta }}</p>
+                    
+                    <div class="test-option">
+                        {% if pregunta.opciones %}
+                            {% set opciones = pregunta.opciones|fromjson %}
+                            {% for valor, texto in opciones.items() %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" 
+                                       name="pregunta_{{ pregunta.id }}" 
+                                       id="pregunta_{{ pregunta.id }}_{{ loop.index }}" 
+                                       value="{{ valor }}" required>
+                                <label class="form-check-label" for="pregunta_{{ pregunta.id }}_{{ loop.index }}">
+                                    {{ texto }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-paper-plane"></i> Enviar respuestas
+                </button>
+                <a href="{{ url_for('test') }}" class="btn btn-outline-secondary">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Función para asegurar que todas las preguntas tengan respuesta
+    document.querySelector('form').addEventListener('submit', function(e) {
+        let radios = document.querySelectorAll('input[type="radio"]');
+        let preguntas = {};
+        let incompletas = false;
+        
+        radios.forEach(function(radio) {
+            if (radio.checked) {
+                preguntas[radio.name] = true;
+            }
+        });
+        
+        // Contar preguntas únicas que deben responderse
+        let totalPreguntas = document.querySelectorAll('.card.mb-3').length;
+        
+        if (Object.keys(preguntas).length < totalPreguntas) {
+            e.preventDefault();
+            alert('Por favor responde todas las preguntas antes de continuar.');
+        }
+    });
+</script>
+{% endblock %}
