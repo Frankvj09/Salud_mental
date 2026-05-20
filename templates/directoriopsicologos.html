@@ -58,12 +58,12 @@
              data-modalidad="{{ psicologo.modalidad|default('')|lower }}">
             <div class="card h-100">
                 <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">{{psicologo['nombre']}}</h5>
+                    <h5 class="mb-0">{{ psicologo['nombre'] }}</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-8">
-                            <p><strong>Especialidad:</strong> {{ psicologo.especialidad }}</p>
+                            <p><strong>Especialidad:</strong> {{ psicologo['especialidad'] }}</p>
                             <p><strong>Descripción:</strong> {{ (psicologo.descripcion or 'Sin descripción disponible')|truncate(100) }}</p>
                             <p>
                                 <strong>Calificación:</strong>
