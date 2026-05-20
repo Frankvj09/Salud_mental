@@ -768,6 +768,357 @@ def api_familiar_atender_alerta(alerta_id):
     conn.close()
     return jsonify({'success': True})
 
+# ============================================
+# API PARA CITAS
+# ============================================
+
+@app.route('/api/citas/crear', methods=['POST'])
+@login_required
+def api_crear_cita():
+    if current_user.tipo_usuario != 'psicologo':
+        return jsonify({'error': 'No autorizado'}), 403
+    
+    data = request.get_json()
+    
+    # Obtener ID del psicólogo
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id FROM psicologos WHERE usuario_id = %s", (current_user.id,))
+    psicologo = cur.fetchone()
+    
+    if not psicologo:
+        return jsonify({'error': 'Perfil de psicólogo no encontrado'}), 404
+    
+    cur.execute("""
+        INSERT INTO citas (psicologo_id, usuario_id, fecha_cita, duracion_minutos, 
+                          modalidad, lugar, enlace_video, notas_psicologo, estado)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendiente')
+    """, (psicologo['id'], data['paciente_id'], data['fecha_cita'], 
+          data['duracion'], data['modalidad'], data.get('lugar'), 
+          data.get('enlace_video'), data.get('notas')))
+    
+    mysql.connection.commit()
+    cita_id = cur.lastrowid
+    cur.close()
+    
+    # Crear recordatorio
+    crear_recordatorio(cita_id)
+    
+    return jsonify({'success': True, 'cita_id': cita_id})
+
+
+@app.route('/api/citas/mis_citas')
+@login_required
+def api_mis_citas():
+    if current_user.tipo_usuario != 'psicologo':
+        return jsonify({'error': 'No autorizado'}), 403
+    
+    cur = mysql.connection.cursor(dictionary=True)
+    cur.execute("""
+        SELECT c.*, u.nombre as paciente_nombre,
+               DATE_FORMAT(c.fecha_cita, '%%d/%%m/%%Y %%H:%%i') as fecha_formateada
+        FROM citas c
+        JOIN usuarios u ON c.usuario_id = u.id
+        WHERE c.psicologo_id = (SELECT id FROM psicologos WHERE usuario_id = %s)
+        ORDER BY c.fecha_cita DESC
+    """, (current_user.id,))
+    
+    citas = cur.fetchall()
+    cur.close()
+    
+    return jsonify({'citas': citas})
+
+
+@app.route('/api/citas/usuario/citas')
+@login_required
+def api_usuario_citas():
+    cur = mysql.connection.cursor(dictionary=True)
+    cur.execute("""
+        SELECT c.*, u.nombre as psicologo_nombre,
+               DATE_FORMAT(c.fecha_cita, '%%d/%%m/%%Y %%H:%%i') as fecha_formateada
+        FROM citas c
+        JOIN psicologos p ON c.psicologo_id = p.id
+        JOIN usuarios u ON p.usuario_id = u.id
+        WHERE c.usuario_id = %s
+        ORDER BY c.fecha_cita DESC
+    """, (current_user.id,))
+    
+    citas = cur.fetchall()
+    cur.close()
+    
+    return jsonify({'citas': citas})
+
+
+@app.route('/api/citas/completar/<int:cita_id>', methods=['POST'])
+@login_required
+def api_completar_cita(cita_id):
+    if current_user.tipo_usuario != 'psicologo':
+        return jsonify({'error': 'No autorizado'}), 403
+    
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        UPDATE citas SET estado = 'completada' 
+        WHERE id = %s AND psicologo_id = (SELECT id FROM psicologos WHERE usuario_id = %s)
+    """, (cita_id, current_user.id))
+    
+    # Registrar asistencia
+    cur.execute("INSERT INTO asistencia_citas (cita_id, asistio) VALUES (%s, TRUE)", (cita_id,))
+    
+    mysql.connection.commit()
+    cur.close()
+    
+    return jsonify({'success': True})
+
+
+# ============================================
+# API PARA MEDICAMENTOS
+# ============================================
+
+@app.route('/api/medicamentos/recetar', methods=['POST'])
+@login_required
+def api_recetar_medicamento():
+    if current_user.tipo_usuario != 'psicologo':
+        return jsonify({'error': 'No autorizado'}), 403
+    
+    data = request.get_json()
+    
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id FROM psicologos WHERE usuario_id = %s", (current_user.id,))
+    psicologo = cur.fetchone()
+    
+    cur.execute("""
+        INSERT INTO medicamentos (usuario_id, psicologo_id, nombre_medicamento, 
+                                  dosis, frecuencia, duracion_dias, instrucciones, fecha_inicio)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, CURDATE())
+    """, (data['paciente_id'], psicologo['id'], data['nombre_medicamento'],
+          data['dosis'], data['frecuencia'], data.get('duracion_dias'), data.get('instrucciones')))
+    
+    mysql.connection.commit()
+    cur.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/medicamentos/usuario')
+@login_required
+def api_medicamentos_usuario():
+    cur = mysql.connection.cursor(dictionary=True)
+    cur.execute("""
+        SELECT m.*, u.nombre as psicologo_nombre,
+               DATE_FORMAT(m.fecha_receta, '%%d/%%m/%%Y') as fecha_receta
+        FROM medicamentos m
+        JOIN psicologos p ON m.psicologo_id = p.id
+        JOIN usuarios u ON p.usuario_id = u.id
+        WHERE m.usuario_id = %s AND m.estado = 'activo'
+        ORDER BY m.fecha_receta DESC
+    """, (current_user.id,))
+    
+    medicamentos = cur.fetchall()
+    cur.close()
+    
+    return jsonify({'medicamentos': medicamentos})
+
+
+# ============================================
+# API PARA EVOLUCIONES
+# ============================================
+
+@app.route('/api/evoluciones/guardar', methods=['POST'])
+@login_required
+def api_guardar_evolucion():
+    if current_user.tipo_usuario != 'psicologo':
+        return jsonify({'error': 'No autorizado'}), 403
+    
+    data = request.get_json()
+    
+    cur = mysql.connection.cursor()
+    
+    # Obtener datos de la cita
+    cur.execute("SELECT usuario_id, psicologo_id FROM citas WHERE id = %s", (data['cita_id'],))
+    cita = cur.fetchone()
+    
+    cur.execute("""
+        INSERT INTO evoluciones (cita_id, psicologo_id, usuario_id, resumen, progreso, proximos_pasos)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (data['cita_id'], cita['psicologo_id'], cita['usuario_id'],
+          data['resumen'], data['progreso'], data['proximos_pasos']))
+    
+    mysql.connection.commit()
+    cur.close()
+    
+    return jsonify({'success': True})
+
+
+# ============================================
+# FUNCIÓN PARA RECORDATORIOS
+# ============================================
+
+def crear_recordatorio(cita_id):
+    """Crear recordatorio para la cita"""
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        INSERT INTO recordatorios (cita_id, tipo, horas_antes)
+        VALUES (%s, 'email', 24), (%s, 'email', 1)
+    """, (cita_id, cita_id))
+    mysql.connection.commit()
+    cur.close()
+
+
+# ============================================
+# VISTAS DE PÁGINAS
+# ============================================
+
+@app.route('/gestion_citas')
+@login_required
+def gestion_citas():
+    if current_user.tipo_usuario != 'psicologo':
+        flash('No tienes acceso', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Obtener lista de pacientes del psicólogo
+    cur = mysql.connection.cursor(dictionary=True)
+    cur.execute("""
+        SELECT DISTINCT u.id, u.nombre
+        FROM conversaciones_chat c
+        JOIN usuarios u ON c.usuario_id = u.id
+        WHERE c.psicologo_id = (SELECT id FROM psicologos WHERE usuario_id = %s)
+    """, (current_user.id,))
+    pacientes = cur.fetchall()
+    cur.close()
+    
+    return render_template('gestion_citas.html', pacientes=pacientes)
+
+
+@app.route('/mis_citas')
+@login_required
+def mis_citas():
+    return render_template('mis_citas.html')
+
+
+@app.route('/historial_medico/<int:paciente_id>')
+@login_required
+def historial_medico(paciente_id):
+    # Verificar permisos
+    if current_user.tipo_usuario == 'usuario' and current_user.id != paciente_id:
+        flash('No tienes permiso', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if current_user.tipo_usuario == 'familiar':
+        # Verificar permiso otorgado por psicólogo
+        cur = mysql.connection.cursor(dictionary=True)
+        cur.execute("""
+            SELECT * FROM permisos_historial 
+            WHERE paciente_id = %s AND familiar_id = %s AND estado = 'activo'
+        """, (paciente_id, current_user.id))
+        permiso = cur.fetchone()
+        cur.close()
+        
+        if not permiso:
+            flash('No tienes autorización para ver este historial', 'danger')
+            return redirect(url_for('dashboard'))
+    
+    # Obtener datos del paciente
+    cur = mysql.connection.cursor(dictionary=True)
+    cur.execute("SELECT * FROM usuarios WHERE id = %s", (paciente_id,))
+    paciente = cur.fetchone()
+    
+    # Diagnosticos
+    cur.execute("""
+        SELECT h.*, u.nombre as psicologo_nombre,
+               DATE_FORMAT(h.fecha_registro, '%%d/%%m/%%Y') as fecha_registro
+        FROM historial_medico h
+        JOIN psicologos p ON h.psicologo_id = p.id
+        JOIN usuarios u ON p.usuario_id = u.id
+        WHERE h.usuario_id = %s
+        ORDER BY h.fecha_registro DESC
+    """, (paciente_id,))
+    diagnosticos = cur.fetchall()
+    
+    # Medicamentos
+    cur.execute("""
+        SELECT * FROM medicamentos 
+        WHERE usuario_id = %s AND estado = 'activo'
+        ORDER BY fecha_receta DESC
+    """, (paciente_id,))
+    medicamentos = cur.fetchall()
+    
+    # Evoluciones
+    cur.execute("""
+        SELECT e.*, DATE_FORMAT(c.fecha_cita, '%%d/%%m/%%Y') as fecha_cita
+        FROM evoluciones e
+        JOIN citas c ON e.cita_id = c.id
+        WHERE e.usuario_id = %s
+        ORDER BY e.fecha_evolucion DESC
+    """, (paciente_id,))
+    evoluciones = cur.fetchall()
+    
+    cur.close()
+    
+    return render_template('historial_medico.html', 
+                          paciente=paciente, 
+                          diagnosticos=diagnosticos,
+                          medicamentos=medicamentos,
+                          evoluciones=evoluciones)
+
+# APP chatbot__________________-
+
+@app.route('/api/bot/alerta', methods=['POST'])
+def api_bot_alerta():
+    """Recibir alertas de riesgo del chatbot XMPP"""
+    data = request.get_json()
+    
+    usuario = data.get('usuario')
+    palabra = data.get('palabra')
+    
+    # Buscar usuario en la base de datos
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id FROM usuarios WHERE email = %s OR nombre = %s", 
+                (usuario, usuario))
+    usuario_data = cur.fetchone()
+    
+    if usuario_data:
+        # Crear alerta urgente
+        cur.execute("""
+            INSERT INTO alertas (usuario_id, tipo_alerta, nivel_alerta, mensaje, estado)
+            VALUES (%s, 'chatbot_riesgo', 'urgente', 
+                    'El chatbot detectó la palabra clave: ' + %s, 'activa')
+        """, (usuario_data['id'], palabra))
+        mysql.connection.commit()
+    
+    cur.close()
+    
+    return jsonify({'success': True})
+
+@app.route('/api/bot/mensaje', methods=['POST'])
+@login_required
+def api_bot_mensaje():
+    """Enviar mensaje al chatbot XMPP y recibir respuesta"""
+    data = request.get_json()
+    mensaje = data.get('mensaje')
+    
+    # Procesar mensaje con la misma lógica del bot
+    respuesta = procesar_mensaje_bot(mensaje)
+    
+    return jsonify({'respuesta': respuesta})
+
+def procesar_mensaje_bot(mensaje):
+    """Lógica del chatbot (replicada del bot XMPP)"""
+    mensaje = mensaje.lower()
+    
+    if any(p in mensaje for p in ['suicidio', 'matarme', 'morir', 'acabar']):
+        return "⚠️ ALERTA CRÍTICA: Por favor llama a la línea de crisis 0800-XXX-XXXX. No estás solo."
+    if any(p in mensaje for p in ['hola', 'buenas', 'hey']):
+        return "¡Hola! Soy el asistente virtual. ¿Cómo te sientes hoy?"
+    if any(p in mensaje for p in ['triste', 'depre', 'deprimido']):
+        return "Lamento que te sientas así. ¿Quieres hablar con un psicólogo? Puedo ayudarte a agendar una cita."
+    if any(p in mensaje for p in ['ansiedad', 'nervioso', 'miedo']):
+        return "La ansiedad puede ser difícil. Prueba respirar profundo 3 veces. ¿Necesitas más consejos?"
+    if any(p in mensaje for p in ['cita', 'psicólogo', 'agendar']):
+        return "Para agendar una cita, ve al panel 'Mis Citas' donde verás los horarios disponibles."
+    if 'gracias' in mensaje:
+        return "¡De nada! Cuídate mucho. Estoy aquí cuando me necesites."
+    
+    return "Gracias por compartir. ¿Puedes contarme más detalles? O si prefieres, puedo ayudarte a contactar a un psicólogo humano."
+# ─────────────────────────────────────────────
 # ─────────────────────────────────────────────
 # RUN
 # ─────────────────────────────────────────────

@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-calendar-plus"></i> Gestionar Citas</h2>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Nueva Cita</h5>
+            </div>
+            <div class="card-body">
+                <form id="formNuevaCita">
+                    <div class="mb-3">
+                        <label class="form-label">Paciente</label>
+                        <select class="form-select" id="paciente_id" required>
+                            <option value="">Seleccionar paciente...</option>
+                            {% for paciente in pacientes %}
+                            <option value="{{ paciente.id }}">{{ paciente.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Fecha y Hora</label>
+                        <input type="datetime-local" class="form-control" id="fecha_cita" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Duración (minutos)</label>
+                        <select class="form-select" id="duracion">
+                            <option value="30">30 minutos</option>
+                            <option value="60" selected>60 minutos</option>
+                            <option value="90">90 minutos</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Modalidad</label>
+                        <select class="form-select" id="modalidad" required>
+                            <option value="online">Online (video llamada)</option>
+                            <option value="presencial">Presencial</option>
+                            <option value="telefonica">Telefónica</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="divLugar" style="display: none;">
+                        <label class="form-label">Dirección / Lugar</label>
+                        <input type="text" class="form-control" id="lugar" placeholder="Dirección de la consulta">
+                    </div>
+                    
+                    <div class="mb-3" id="divEnlace" style="display: none;">
+                        <label class="form-label">Enlace de videollamada</label>
+                        <input type="url" class="form-control" id="enlace_video" placeholder="https://meet.google.com/...">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notas (para el paciente)</label>
+                        <textarea class="form-control" id="notas" rows="3" placeholder="Instrucciones adicionales..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-save"></i> Crear Cita
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Próximas Citas</h5>
+            </div>
+            <div class="card-body">
+                <div id="listaProximasCitas">
+                    <!-- Se llena con JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Historial de Citas</h5>
+            </div>
+            <div class="card-body">
+                <div id="listaHistorialCitas">
+                    <!-- Se llena con JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver detalle de cita -->
+<div class="modal fade" id="detalleCitaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Detalle de Cita</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detalleCitaContent">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-success" onclick="completarCita()">Completar Cita</button>
+                <button type="button" class="btn btn-danger" onclick="cancelarCita()">Cancelar Cita</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar evolución médica -->
+<div class="modal fade" id="evolucionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Agregar Evolución Médica</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEvolucion">
+                    <input type="hidden" id="evolucion_cita_id">
+                    <div class="mb-3">
+                        <label class="form-label">Resumen de la sesión</label>
+                        <textarea class="form-control" id="resumen" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Progreso del paciente</label>
+                        <textarea class="form-control" id="progreso" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Próximos pasos / Recomendaciones</label>
+                        <textarea class="form-control" id="proximos_pasos" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarEvolucion()">Guardar Evolución</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let citaActualId = null;
+    
+    // Mostrar/ocultar campos según modalidad
+    document.getElementById('modalidad').addEventListener('change', function() {
+        const modalidad = this.value;
+        const divLugar = document.getElementById('divLugar');
+        const divEnlace = document.getElementById('divEnlace');
+        
+        if (modalidad === 'presencial') {
+            divLugar.style.display = 'block';
+            divEnlace.style.display = 'none';
+        } else if (modalidad === 'online') {
+            divLugar.style.display = 'none';
+            divEnlace.style.display = 'block';
+        } else {
+            divLugar.style.display = 'none';
+            divEnlace.style.display = 'none';
+        }
+    });
+    
+    // Crear nueva cita
+    document.getElementById('formNuevaCita').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const data = {
+            paciente_id: document.getElementById('paciente_id').value,
+            fecha_cita: document.getElementById('fecha_cita').value,
+            duracion: document.getElementById('duracion').value,
+            modalidad: document.getElementById('modalidad').value,
+            lugar: document.getElementById('lugar').value,
+            enlace_video: document.getElementById('enlace_video').value,
+            notas: document.getElementById('notas').value
+        };
+        
+        const response = await fetch('/api/citas/crear', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Cita creada exitosamente');
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    });
+    
+    // Cargar citas
+    async function cargarCitas() {
+        const response = await fetch('/api/citas/mis_citas');
+        const data = await response.json();
+        
+        // Próximas citas
+        const proximas = data.citas.filter(c => c.estado === 'pendiente' || c.estado === 'confirmada');
+        const containerProximas = document.getElementById('listaProximasCitas');
+        
+        if (proximas.length > 0) {
+            containerProximas.innerHTML = proximas.map(cita => `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${cita.paciente_nombre}</strong>
+                            <br>
+                            <small class="text-muted">
+                                <i class="fas fa-calendar"></i> ${cita.fecha_formateada}
+                                <i class="fas fa-clock ms-2"></i> ${cita.duracion} min
+                            </small>
+                            <br>
+                            <span class="badge ${cita.modalidad === 'online' ? 'bg-info' : 'bg-secondary'}">
+                                ${cita.modalidad === 'online' ? '🖥️ Online' : cita.modalidad === 'presencial' ? '🏥 Presencial' : '📞 Telefónica'}
+                            </span>
+                        </div>
+                        <button class="btn btn-sm btn-primary" onclick="verDetalleCita(${cita.id})">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            containerProximas.innerHTML = '<p class="text-muted text-center">No hay citas programadas</p>';
+        }
+        
+        // Historial
+        const historial = data.citas.filter(c => c.estado === 'completada' || c.estado === 'no_asistio');
+        const containerHistorial = document.getElementById('listaHistorialCitas');
+        
+        if (historial.length > 0) {
+            containerHistorial.innerHTML = historial.map(cita => `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${cita.paciente_nombre}</strong>
+                            <br>
+                            <small>${cita.fecha_formateada}</small>
+                            <br>
+                            <span class="badge ${cita.estado === 'completada' ? 'bg-success' : 'bg-danger'}">
+                                ${cita.estado}
+                            </span>
+                        </div>
+                        <button class="btn btn-sm btn-info" onclick="verHistorialPaciente(${cita.paciente_id})">
+                            <i class="fas fa-history"></i> Historial
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            containerHistorial.innerHTML = '<p class="text-muted text-center">No hay historial de citas</p>';
+        }
+    }
+    
+    function verDetalleCita(citaId) {
+        citaActualId = citaId;
+        // Cargar detalle y mostrar modal
+        fetch(`/api/citas/detalle/${citaId}`)
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('detalleCitaContent').innerHTML = `
+                    <p><strong>Paciente:</strong> ${data.cita.paciente_nombre}</p>
+                    <p><strong>Fecha:</strong> ${data.cita.fecha_formateada}</p>
+                    <p><strong>Modalidad:</strong> ${data.cita.modalidad}</p>
+                    <p><strong>Lugar/Enlace:</strong> ${data.cita.lugar || data.cita.enlace_video || 'No especificado'}</p>
+                    <p><strong>Estado:</strong> ${data.cita.estado}</p>
+                    <p><strong>Notas:</strong> ${data.cita.notas_psicologo || 'Sin notas'}</p>
+                    <hr>
+                    <h6>Evoluciones anteriores:</h6>
+                    ${data.evoluciones.map(ev => `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <small>${ev.fecha_evolucion}</small>
+                                <p>${ev.resumen}</p>
+                            </div>
+                        </div>
+                    `).join('') || '<p>No hay evoluciones registradas</p>'}
+                `;
+                new bootstrap.Modal(document.getElementById('detalleCitaModal')).show();
+            });
+    }
+    
+    function completarCita() {
+        if (confirm('¿La cita se completó exitosamente?')) {
+            fetch(`/api/citas/completar/${citaActualId}`, {method: 'POST'})
+                .then(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('detalleCitaModal')).hide();
+                    document.getElementById('evolucion_cita_id').value = citaActualId;
+                    new bootstrap.Modal(document.getElementById('evolucionModal')).show();
+                    cargarCitas();
+                });
+        }
+    }
+    
+    function cancelarCita() {
+        if (confirm('¿Cancelar esta cita?')) {
+            fetch(`/api/citas/cancelar/${citaActualId}`, {method: 'POST'})
+                .then(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('detalleCitaModal')).hide();
+                    cargarCitas();
+                });
+        }
+    }
+    
+    function guardarEvolucion() {
+        const data = {
+            cita_id: document.getElementById('evolucion_cita_id').value,
+            resumen: document.getElementById('resumen').value,
+            progreso: document.getElementById('progreso').value,
+            proximos_pasos: document.getElementById('proximos_pasos').value
+        };
+        
+        fetch('/api/evoluciones/guardar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(() => {
+            bootstrap.Modal.getInstance(document.getElementById('evolucionModal')).hide();
+            alert('Evolución guardada');
+        });
+    }
+    
+    function verHistorialPaciente(pacienteId) {
+        window.location.href = `/historial_medico/${pacienteId}`;
+    }
+    
+    cargarCitas();
+    setInterval(cargarCitas, 30000);
+</script>
+{% endblock %}

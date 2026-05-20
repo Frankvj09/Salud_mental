@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-calendar-check"></i> Mis Citas</h2>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-clock"></i> Próximas Citas</h5>
+            </div>
+            <div class="card-body">
+                <div id="proximasCitas">
+                    <!-- JS llena -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Historial de Citas</h5>
+            </div>
+            <div class="card-body">
+                <div id="historialCitas">
+                    <!-- JS llena -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-pills"></i> Mis Tratamientos</h5>
+            </div>
+            <div class="card-body">
+                <div id="tratamientos">
+                    <!-- Medicamentos activos -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function cargarMisCitas() {
+        const response = await fetch('/api/citas/usuario/citas');
+        const data = await response.json();
+        
+        // Próximas citas
+        const proximas = data.citas.filter(c => ['pendiente', 'confirmada'].includes(c.estado));
+        document.getElementById('proximasCitas').innerHTML = proximas.map(cita => `
+            <div class="alert alert-info">
+                <strong>${cita.psicologo_nombre}</strong><br>
+                <i class="fas fa-calendar"></i> ${cita.fecha_formateada}<br>
+                <i class="fas fa-clock"></i> ${cita.duracion} minutos<br>
+                <i class="fas fa-video"></i> ${cita.modalidad === 'online' ? 'Videollamada' : cita.modalidad}<br>
+                ${cita.enlace_video ? `<a href="${cita.enlace_video}" target="_blank" class="btn btn-sm btn-success mt-2">Unirse a videollamada</a>` : ''}
+                <span class="badge ${cita.estado === 'pendiente' ? 'bg-warning' : 'bg-success'}">${cita.estado}</span>
+            </div>
+        `).join('') || '<p class="text-muted">No hay citas programadas</p>';
+        
+        // Historial
+        const historial = data.citas.filter(c => ['completada', 'no_asistio', 'cancelada'].includes(c.estado));
+        document.getElementById('historialCitas').innerHTML = historial.map(cita => `
+            <div class="list-group-item">
+                <strong>${cita.psicologo_nombre}</strong>
+                <br><small>${cita.fecha_formateada}</small>
+                <span class="badge ${cita.estado === 'completada' ? 'bg-success' : 'bg-danger'} float-end">${cita.estado}</span>
+            </div>
+        `).join('') || '<p class="text-muted">No hay historial de citas</p>';
+    }
+    
+    async function cargarMisMedicamentos() {
+        const response = await fetch('/api/medicamentos/usuario');
+        const data = await response.json();
+        
+        document.getElementById('tratamientos').innerHTML = data.medicamentos.map(med => `
+            <div class="alert alert-success">
+                <strong>💊 ${med.nombre_medicamento}</strong>
+                <p>Dosis: ${med.dosis} - Frecuencia: ${med.frecuencia}</p>
+                <p>Instrucciones: ${med.instrucciones}</p>
+                <small>Prescrito por: ${med.psicologo_nombre} - ${med.fecha_receta}</small>
+            </div>
+        `).join('') || '<p class="text-muted">No hay medicamentos prescritos</p>';
+    }
+    
+    cargarMisCitas();
+    cargarMisMedicamentos();
+    setInterval(cargarMisCitas, 30000);
+</script>
+{% endblock %}

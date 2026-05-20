@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-notes-medical"></i> Historial Médico</h2>
+        <p>Paciente: <strong>{{ paciente.nombre }}</strong></p>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-stethoscope"></i> Diagnósticos</h5>
+            </div>
+            <div class="card-body">
+                <div id="diagnosticos">
+                    {% for diag in diagnosticos %}
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <strong>Dr. {{ diag.psicologo_nombre }}</strong>
+                            <small class="text-muted float-end">{{ diag.fecha_registro }}</small>
+                            <p>{{ diag.diagnostico }}</p>
+                            <p><em>Síntomas:</em> {{ diag.sintomas }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-pills"></i> Medicamentos</h5>
+            </div>
+            <div class="card-body">
+                {% for med in medicamentos %}
+                <div class="alert alert-info">
+                    <strong>{{ med.nombre_medicamento }}</strong>
+                    <p>{{ med.dosis }} - {{ med.frecuencia }}</p>
+                    <small>Inicio: {{ med.fecha_inicio }} - Fin: {{ med.fecha_fin or 'Indefinido' }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Evoluciones</h5>
+            </div>
+            <div class="card-body">
+                {% for ev in evoluciones %}
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <strong>Cita del {{ ev.fecha_cita }}</strong>
+                        <p>{{ ev.resumen }}</p>
+                        <p><em>Próximos pasos:</em> {{ ev.proximos_pasos }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_user.tipo_usuario == 'psicologo' %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-prescription"></i> Recetar Medicamento</h5>
+            </div>
+            <div class="card-body">
+                <form id="formMedicamento">
+                    <input type="hidden" id="paciente_id" value="{{ paciente.id }}">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label>Medicamento</label>
+                            <input type="text" class="form-control" id="nombre_medicamento" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label>Dosis</label>
+                            <input type="text" class="form-control" id="dosis" placeholder="50mg">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label>Frecuencia</label>
+                            <input type="text" class="form-control" id="frecuencia" placeholder="Cada 12 horas">
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label>Duración (días)</label>
+                            <input type="number" class="form-control" id="duracion">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label>Instrucciones</label>
+                        <textarea class="form-control" id="instrucciones" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Recetar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('formMedicamento')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            paciente_id: document.getElementById('paciente_id').value,
+            nombre_medicamento: document.getElementById('nombre_medicamento').value,
+            dosis: document.getElementById('dosis').value,
+            frecuencia: document.getElementById('frecuencia').value,
+            duracion_dias: document.getElementById('duracion').value,
+            instrucciones: document.getElementById('instrucciones').value
+        };
+        
+        const response = await fetch('/api/medicamentos/recetar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            alert('Medicamento recetado');
+            location.reload();
+        }
+    });
+</script>
+{% endblock %}

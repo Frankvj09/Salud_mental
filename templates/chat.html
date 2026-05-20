@@ -100,4 +100,53 @@
         </div>
     </div>
 </div>
+<!-- Botón para alternar entre Chat Humano y Chatbot -->
+<div class="mb-3">
+    <div class="btn-group w-100" role="group">
+        <button type="button" class="btn btn-primary" id="btnChatHumano">👨‍⚕️ Psicólogo Humano</button>
+        <button type="button" class="btn btn-secondary" id="btnChatBot">🤖 Asistente Virtual</button>
+    </div>
+</div>
+
+<script>
+    let modoBot = false;
+    
+    document.getElementById('btnChatBot').addEventListener('click', function() {
+        modoBot = true;
+        document.getElementById('btnChatBot').classList.add('btn-primary');
+        document.getElementById('btnChatBot').classList.remove('btn-secondary');
+        document.getElementById('btnChatHumano').classList.add('btn-secondary');
+        document.getElementById('btnChatHumano').classList.remove('btn-primary');
+        agregarMensajeSistema('Modo chatbot activado. Escribe tus preguntas simples.');
+    });
+    
+    document.getElementById('btnChatHumano').addEventListener('click', function() {
+        modoBot = false;
+        document.getElementById('btnChatHumano').classList.add('btn-primary');
+        document.getElementById('btnChatHumano').classList.remove('btn-secondary');
+        document.getElementById('btnChatBot').classList.add('btn-secondary');
+        document.getElementById('btnChatBot').classList.remove('btn-primary');
+        agregarMensajeSistema('Modo psicólogo humano activado. Te atenderá un profesional.');
+    });
+    
+    function enviarMensaje() {
+        const mensaje = document.getElementById('message-input').value;
+        
+        if (modoBot) {
+            // Enviar al bot XMPP via API
+            fetch('/api/bot/mensaje', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mensaje: mensaje, usuario: currentUserEmail})
+            })
+            .then(response => response.json())
+            .then(data => {
+                agregarMensaje(data.respuesta, 'bot');
+            });
+        } else {
+            // Enviar al psicólogo humano (Socket.IO)
+            socket.emit('message', {...});
+        }
+    }
+</script>
 {% endblock %}
