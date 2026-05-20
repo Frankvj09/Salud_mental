@@ -58,7 +58,7 @@
              data-modalidad="{{ psicologo.modalidad|default('')|lower }}">
             <div class="card h-100">
                 <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">{{ psicologo.nombre }}</h5>
+                    <h5 class="mb-0">{{psicologo['nombre']}}</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -100,7 +100,7 @@
                 </div>
                 <div class="card-footer bg-white">
                     {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('iniciar_chat', psicologo_id=psicologo.id) }}" class="btn btn-success">
+                        <a href="{{ url_for('iniciar_chat', psicologo_id=psicologo['id']) }}" class="btn btn-success"></a>
                             <i class="fas fa-comment"></i> Contactar
                         </a>
                     {% else %}
