@@ -1059,66 +1059,83 @@ def historial_medico(paciente_id):
                           medicamentos=medicamentos,
                           evoluciones=evoluciones)
 
-# APP chatbot__________________-
+# ==================== CHATBOT API ====================
 
-@app.route('/api/bot/alerta', methods=['POST'])
-def api_bot_alerta():
-    """Recibir alertas de riesgo del chatbot XMPP"""
+@app.route('/api/chatbot/mensaje', methods=['POST'])
+@login_required
+def api_chatbot_mensaje():
+    """API para enviar mensajes al chatbot (sin WebSocket)"""
     data = request.get_json()
+    mensaje = data.get('mensaje', '').lower()
     
-    usuario = data.get('usuario')
-    palabra = data.get('palabra')
+    # Lógica del chatbot
+    respuesta = procesar_mensaje_chatbot(mensaje)
     
-    # Buscar usuario en la base de datos
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT id FROM usuarios WHERE email = %s OR nombre = %s", 
-                (usuario, usuario))
-    usuario_data = cur.fetchone()
-    
-    if usuario_data:
-        # Crear alerta urgente
+    # Verificar palabras de riesgo
+    if any(palabra in mensaje for palabra in ['suicidio', 'matarme', 'morir', 'acabar']):
+        # Guardar alerta en la base de datos
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("""
             INSERT INTO alertas (usuario_id, tipo_alerta, nivel_alerta, mensaje, estado)
-            VALUES (%s, 'chatbot_riesgo', 'urgente', 
-                    'El chatbot detectó la palabra clave: ' + %s, 'activa')
-        """, (usuario_data['id'], palabra))
-        mysql.connection.commit()
+            VALUES (%s, 'chatbot_riesgo', 'urgente', %s, 'activa')
+        """, (current_user.id, f'Chatbot detectó: {mensaje[:100]}'))
+        conn.commit()
+        cur.close()
+        conn.close()
     
-    cur.close()
-    
-    return jsonify({'success': True})
+    return jsonify({
+        'respuesta': respuesta,
+        'usuario': 'Chatbot 🤖',
+        'timestamp': datetime.now().strftime('%H:%M')
+    })
 
-@app.route('/api/bot/mensaje', methods=['POST'])
-@login_required
-def api_bot_mensaje():
-    """Enviar mensaje al chatbot XMPP y recibir respuesta"""
-    data = request.get_json()
-    mensaje = data.get('mensaje')
-    
-    # Procesar mensaje con la misma lógica del bot
-    respuesta = procesar_mensaje_bot(mensaje)
-    
-    return jsonify({'respuesta': respuesta})
-
-def procesar_mensaje_bot(mensaje):
-    """Lógica del chatbot (replicada del bot XMPP)"""
+def procesar_mensaje_chatbot(mensaje):
+    """Procesa el mensaje y retorna respuesta del chatbot"""
     mensaje = mensaje.lower()
     
-    if any(p in mensaje for p in ['suicidio', 'matarme', 'morir', 'acabar']):
-        return "⚠️ ALERTA CRÍTICA: Por favor llama a la línea de crisis 0800-XXX-XXXX. No estás solo."
-    if any(p in mensaje for p in ['hola', 'buenas', 'hey']):
-        return "¡Hola! Soy el asistente virtual. ¿Cómo te sientes hoy?"
-    if any(p in mensaje for p in ['triste', 'depre', 'deprimido']):
-        return "Lamento que te sientas así. ¿Quieres hablar con un psicólogo? Puedo ayudarte a agendar una cita."
-    if any(p in mensaje for p in ['ansiedad', 'nervioso', 'miedo']):
-        return "La ansiedad puede ser difícil. Prueba respirar profundo 3 veces. ¿Necesitas más consejos?"
-    if any(p in mensaje for p in ['cita', 'psicólogo', 'agendar']):
-        return "Para agendar una cita, ve al panel 'Mis Citas' donde verás los horarios disponibles."
-    if 'gracias' in mensaje:
-        return "¡De nada! Cuídate mucho. Estoy aquí cuando me necesites."
+    # Detectar crisis (prioridad máxima)
+    if any(p in mensaje for p in ['suicidio', 'matarme', 'morir', 'acabar con todo', 'lastimarme']):
+        return "⚠️ **ALERTA CRÍTICA** ⚠️\n\nHas mencionado algo muy importante. Por favor, llama inmediatamente a la línea de crisis: **0800-XXX-XXXX** o al **911**.\n\nNo estás solo. Hay personas que quieren ayudarte."
     
-    return "Gracias por compartir. ¿Puedes contarme más detalles? O si prefieres, puedo ayudarte a contactar a un psicólogo humano."
-# ─────────────────────────────────────────────
+    # Saludos
+    if any(p in mensaje for p in ['hola', 'buenas', 'hey', 'saludos', 'qué tal']):
+        return "¡Hola! Soy el asistente virtual de salud mental. ¿Cómo te sientes hoy?\n\nPuedes contarme cómo te va, o pedirme ayuda con:\n• 📋 Tests de salud mental\n• 📅 Agendar citas\n• 💊 Información sobre medicamentos\n• ❤️ Consejos de bienestar"
+    
+    # Depresión / Tristeza
+    if any(p in mensaje for p in ['triste', 'depre', 'deprimido', 'vacío', 'sin ganas', 'desánimo']):
+        return "Lamento que te sientas así. Es valioso que compartas lo que sientes.\n\n**¿Te gustaría?**\n1️⃣ Hablar con un psicólogo humano (puedo ayudarte a agendar una cita)\n2️⃣ Realizar un test de depresión\n3️⃣ Recibir algunos consejos para sentirte mejor\n\nResponde con el número que prefieras."
+    
+    # Ansiedad
+    if any(p in mensaje for p in ['ansiedad', 'nervioso', 'preocupado', 'miedo', 'pánico', 'estrés']):
+        return "La ansiedad puede ser muy difícil de manejar. Prueba esta técnica ahora mismo:\n\n🌬️ **Respiración 4-7-8:**\n1. Inhala por 4 segundos\n2. Mantén por 7 segundos\n3. Exhala por 8 segundos\n\nRepite 5 veces. ¿Te sientes un poco mejor?\n\n¿Necesitas más consejos para manejar la ansiedad?"
+    
+    # Citas
+    if any(p in mensaje for p in ['cita', 'agendar', 'psicólogo', 'terapia', 'consultar']):
+        return "Para agendar una cita con un psicólogo:\n\n1️⃣ Ve a la sección **'Directorio de Psicólogos'**\n2️⃣ Elige un profesional\n3️⃣ Haz clic en **'Contactar'** para iniciar un chat\n\nTambién puedes pedirle a tu psicólogo que agende citas periódicas.\n\n¿Necesitas ayuda para encontrar un psicólogo?"
+    
+    # Medicamentos
+    if any(p in mensaje for p in ['medicamento', 'pastilla', 'receta', 'tratamiento', 'fármaco']):
+        return "⚠️ **Importante:** Solo tu médico psiquiatra puede recetar medicamentos.\n\nSi ya tienes una receta:\n• Toma tus medicamentos en el horario indicado\n• No suspendas el tratamiento sin consultar\n• Reporta efectos secundarios a tu médico\n\n¿Tienes dudas sobre tus medicamentos actuales?"
+    
+    # Tests
+    if any(p in mensaje for p in ['test', 'evaluación', 'cuestionario', 'diagnóstico']):
+        return "📋 **Tests de salud mental disponibles:**\n\n• **PHQ-9** - Evaluación de depresión\n• **GAD-7** - Evaluación de ansiedad\n• **Test de Bienestar Emocional**\n\nPara realizarlos, ve a la sección **'Tests'** en el menú principal.\n\n¿Quieres que te explique cómo funcionan?"
+    
+    # Consejos
+    if any(p in mensaje for p in ['consejo', 'ayuda', 'qué hago', 'recomendación', 'sugerencia']):
+        return "📝 **Consejos para tu bienestar:**\n\n✅ Escribe en un diario cómo te sientes\n✅ Realiza actividad física ligera (caminar 15 min)\n✅ Mantén contacto con personas de confianza\n✅ Establece pequeñas metas diarias\n✅ Duerme 7-8 horas\n\n¿Quieres más consejos específicos?"
+    
+    # Agradecimiento
+    if any(p in mensaje for p in ['gracias', 'gracias', 'te lo agradezco', 'muy amable']):
+        return "¡De nada! Me alegra poder ayudarte. Recuerda que siempre puedes volver a escribir si necesitas algo más.\n\nCuídate mucho. 💙"
+    
+    # Despedida
+    if any(p in mensaje for p in ['chao', 'adiós', 'hasta luego', 'nos vemos', 'salir']):
+        return "Cuídate mucho. Recuerda que no estás solo y que siempre puedes volver cuando lo necesites.\n\n💙 **Línea de crisis disponible 24/7:** 0800-XXX-XXXX"
+    
+    # Respuesta por defecto
+    return "Gracias por compartir. Estoy aquí para escucharte.\n\n¿Puedes contarme más detalles sobre cómo te sientes?\n\nO si prefieres, puedo ayudarte con:\n• Consejos para el día a día\n• Información sobre tests de salud mental\n• Cómo agendar una cita con un psicólogo"
 # ─────────────────────────────────────────────
 # RUN
 # ─────────────────────────────────────────────

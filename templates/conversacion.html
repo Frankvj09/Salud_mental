@@ -5,10 +5,21 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-comment"></i> Conversación</h5>
-                <a href="{{ url_for('chat') }}" class="btn btn-sm btn-light">
-                    <i class="fas fa-arrow-left"></i> Volver
-                </a>
+                <h5 class="mb-0">
+                    <i class="fas fa-comment"></i> 
+                    <span id="modoActual">Chat con Psicólogo</span>
+                </h5>
+                <div>
+                    <button id="btnModoChatbot" class="btn btn-sm btn-warning me-2" onclick="cambiarModo('bot')">
+                        <i class="fas fa-robot"></i> Hablar con Bot
+                    </button>
+                    <button id="btnModoPsicologo" class="btn btn-sm btn-light" onclick="cambiarModo('psicologo')" style="display:none;">
+                        <i class="fas fa-user-md"></i> Volver con Psicólogo
+                    </button>
+                    <a href="{{ url_for('chat') }}" class="btn btn-sm btn-light">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
             </div>
             <div class="card-body" style="height: 500px; overflow-y: auto;" id="chat-messages">
                 {% for mensaje in mensajes %}
@@ -29,8 +40,8 @@
                         <i class="fas fa-paper-plane"></i> Enviar
                     </button>
                 </form>
-                <small class="text-muted mt-2 d-block">
-                    <i class="fas fa-info-circle"></i> Tu conversación es confidencial
+                <small class="text-muted mt-2 d-block" id="info-modo">
+                    <i class="fas fa-info-circle"></i> Estás chateando con un psicólogo profesional
                 </small>
             </div>
         </div>
@@ -40,54 +51,164 @@
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var socket = io();
-        var conversationId = {{ conversacion_id }};
-        var username = "{{ current_user.nombre }}";
+    let modoBot = false;
+    let conversationId = {{ conversacion_id }};
+    let username = "{{ current_user.nombre }}";
+    let socket = null;
+    let wsConnected = false;
+    
+    // Inicializar Socket.IO solo para el chat con psicólogo
+    function initSocket() {
+        if (socket) {
+            socket.disconnect();
+        }
         
-        // Unirse a la sala de chat
-        socket.emit('join', {conversacion_id: conversationId});
+        socket = io({
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5
+        });
         
-        // Manejar envío de mensajes
-        document.getElementById('message-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            var messageInput = document.getElementById('message-input');
-            var message = messageInput.value.trim();
-            
-            if (message) {
-                socket.emit('message', {
-                    conversacion_id: conversationId,
-                    message: message
-                });
-                messageInput.value = '';
+        socket.on('connect', function() {
+            console.log('✅ WebSocket conectado');
+            wsConnected = true;
+            socket.emit('join', {conversacion_id: conversationId});
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('⚠️ WebSocket desconectado');
+            wsConnected = false;
+        });
+        
+        socket.on('message', function(data) {
+            if (!modoBot) {
+                agregarMensaje(data.user, data.message, data.timestamp);
+                // Reproducir sonido de notificación (opcional)
+                // new Audio('/static/notification.mp3').play();
             }
         });
         
-        // Recibir mensajes
-        socket.on('message', function(data) {
-            var messagesDiv = document.getElementById('chat-messages');
-            var messageDiv = document.createElement('div');
-            messageDiv.className = 'message mb-3 ' + (data.user === username ? 'text-end' : '');
-            messageDiv.innerHTML = `
-                <div class="d-inline-block ${data.user === username ? 'bg-primary text-white' : 'bg-light'} rounded p-2" style="max-width: 70%;">
-                    <small class="d-block ${data.user === username ? 'text-white-50' : 'text-muted'}">
-                        ${data.user} - ${data.timestamp.split(' ')[1]}
-                    </small>
-                    <p class="mb-0">${data.message}</p>
-                </div>
-            `;
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        });
-        
-        // Notificaciones de estado
         socket.on('status', function(data) {
-            console.log(data.msg);
+            if (!modoBot) {
+                agregarMensaje('Sistema', data.msg, new Date().toLocaleTimeString());
+            }
         });
+    }
+    
+    function cambiarModo(modo) {
+        modoBot = (modo === 'bot');
         
-        // Scroll al fondo al cargar
-        var messagesDiv = document.getElementById('chat-messages');
+        if (modoBot) {
+            // Cambiar a modo CHATBOT
+            document.getElementById('modoActual').innerHTML = '<i class="fas fa-robot"></i> Chatbot Virtual';
+            document.getElementById('btnModoChatbot').style.display = 'none';
+            document.getElementById('btnModoPsicologo').style.display = 'inline-block';
+            document.getElementById('info-modo').innerHTML = '<i class="fas fa-robot"></i> Estás hablando con el asistente virtual (IA). Consultas simples 24/7.';
+            
+            // Mensaje de bienvenida del bot
+            agregarMensaje('Chatbot 🤖', '¡Hola! Soy el asistente virtual. ¿Cómo te sientes hoy?\n\nPuedo ayudarte con:\n• 📋 Tests de salud mental\n• 📅 Agendar citas\n• 💊 Información sobre medicamentos\n• ❤️ Consejos de bienestar\n\nSi necesitas ayuda más especializada, puedes volver al chat con un psicólogo humano.', new Date().toLocaleTimeString());
+            
+        } else {
+            // Cambiar a modo PSICÓLOGO HUMANO
+            document.getElementById('modoActual').innerHTML = '<i class="fas fa-user-md"></i> Chat con Psicólogo';
+            document.getElementById('btnModoChatbot').style.display = 'inline-block';
+            document.getElementById('btnModoPsicologo').style.display = 'none';
+            document.getElementById('info-modo').innerHTML = '<i class="fas fa-info-circle"></i> Estás chateando con un psicólogo profesional. Las respuestas son en tiempo real.';
+            
+            // Reconectar WebSocket si es necesario
+            if (!wsConnected || !socket) {
+                initSocket();
+            }
+            
+            // Mensaje de reconexión
+            agregarMensaje('Sistema', 'Has vuelto al chat con el psicólogo. Puedes continuar tu conversación.', new Date().toLocaleTimeString());
+        }
+    }
+    
+    function agregarMensaje(remitente, mensaje, timestamp) {
+        let messagesDiv = document.getElementById('chat-messages');
+        let isCurrentUser = (remitente === username);
+        
+        let messageDiv = document.createElement('div');
+        messageDiv.className = 'message mb-3 ' + (isCurrentUser ? 'text-end' : '');
+        messageDiv.innerHTML = `
+            <div class="d-inline-block ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'} rounded p-2" style="max-width: 70%;">
+                <small class="d-block ${isCurrentUser ? 'text-white-50' : 'text-muted'}">
+                    ${remitente} - ${timestamp}
+                </small>
+                <p class="mb-0" style="white-space: pre-line;">${escapeHtml(mensaje)}</p>
+            </div>
+        `;
+        messagesDiv.appendChild(messageDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Enviar mensaje (funciona en ambos modos)
+    document.getElementById('message-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        let messageInput = document.getElementById('message-input');
+        let mensaje = messageInput.value.trim();
+        
+        if (!mensaje) return;
+        
+        // Mostrar mensaje del usuario inmediatamente
+        agregarMensaje(username, mensaje, new Date().toLocaleTimeString());
+        messageInput.value = '';
+        messageInput.focus();
+        
+        if (modoBot) {
+            // === MODO CHATBOT: Enviar por HTTP ===
+            try {
+                let response = await fetch('/api/chatbot/mensaje', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({mensaje: mensaje})
+                });
+                let data = await response.json();
+                agregarMensaje('Chatbot 🤖', data.respuesta, data.timestamp);
+            } catch (error) {
+                console.error('Error:', error);
+                agregarMensaje('Sistema', 'Error al conectar con el chatbot. Intenta de nuevo.', new Date().toLocaleTimeString());
+            }
+        } else {
+            // === MODO PSICÓLOGO: Enviar por WebSocket ===
+            if (socket && wsConnected) {
+                socket.emit('message', {
+                    conversacion_id: conversationId,
+                    message: mensaje
+                });
+            } else {
+                agregarMensaje('Sistema', 'Desconectado. Reconectando al servidor...', new Date().toLocaleTimeString());
+                initSocket();
+                // Reintentar después de reconectar
+                setTimeout(() => {
+                    if (socket && wsConnected) {
+                        socket.emit('message', {
+                            conversacion_id: conversationId,
+                            message: mensaje
+                        });
+                    } else {
+                        agregarMensaje('Sistema', 'No se pudo enviar el mensaje. Verifica tu conexión.', new Date().toLocaleTimeString());
+                    }
+                }, 2000);
+            }
+        }
     });
+    
+    // Inicializar WebSocket al cargar la página
+    initSocket();
+    
+    // Scroll al fondo al cargar
+    let messagesDiv = document.getElementById('chat-messages');
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    
+    // Enfocar input automáticamente
+    document.getElementById('message-input').focus();
 </script>
 {% endblock %}
