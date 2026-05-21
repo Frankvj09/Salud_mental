@@ -55,7 +55,35 @@
                 </div>
             </div>
         </div>
-        
+ <!-- En templates/dashboard_familiar.html, agrega esta sección -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-heartbeat"></i> Acceso a Historial Médico</h5>
+            </div>
+            <div class="card-body">
+                <p>Si tienes permiso de un familiar, puedes ver su historial médico:</p>
+                <div class="input-group">
+                    <input type="text" id="emailPaciente" class="form-control" placeholder="Email del familiar que autorizó el acceso">
+                    <button class="btn btn-warning" onclick="buscarPaciente()">
+                        <i class="fas fa-search"></i> Ver Historial
+                    </button>
+                </div>
+                <small class="text-muted">Necesitas autorización del psicólogo tratante.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function buscarPaciente() {
+    let email = document.getElementById('emailPaciente').value;
+    if (email) {
+        window.location.href = `/historial_medico/buscar?email=${encodeURIComponent(email)}`;
+    }
+}
+</script>
         <div class="card mt-3">
             <div class="card-header bg-info text-white">
                 <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Recomendaciones</h5>

@@ -791,98 +791,238 @@ def api_familiar_atender_alerta(alerta_id):
 @app.route('/api/citas/crear', methods=['POST'])
 @login_required
 def api_crear_cita():
+
     if current_user.tipo_usuario != 'psicologo':
         return jsonify({'error': 'No autorizado'}), 403
-    
-    data = request.get_json()
-    
-    # Obtener ID del psicólogo
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT id FROM psicologos WHERE usuario_id = %s", (current_user.id,))
-    psicologo = cur.fetchone()
-    
-    if not psicologo:
-        return jsonify({'error': 'Perfil de psicólogo no encontrado'}), 404
-    
-    cur.execute("""
-        INSERT INTO citas (psicologo_id, usuario_id, fecha_cita, duracion_minutos, 
-                          modalidad, lugar, enlace_video, notas_psicologo, estado)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendiente')
-    """, (psicologo['id'], data['paciente_id'], data['fecha_cita'], 
-          data['duracion'], data['modalidad'], data.get('lugar'), 
-          data.get('enlace_video'), data.get('notas')))
-    
-    mysql.connection.commit()
-    cita_id = cur.lastrowid
-    cur.close()
-    
-    # Crear recordatorio
-    crear_recordatorio(cita_id)
-    
-    return jsonify({'success': True, 'cita_id': cita_id})
 
+    data = request.get_json()
+
+    conn = get_db_connection()
+    cur = get_cursor(conn)
+
+    try:
+
+        cur.execute(
+            "SELECT id FROM psicologos WHERE usuario_id = %s",
+            (current_user.id,)
+        )
+
+        psicologo = cur.fetchone()
+
+        if not psicologo:
+            return jsonify({'error': 'Perfil no encontrado'}), 404
+
+        cur.execute("""
+            INSERT INTO citas (
+                psicologo_id,
+                usuario_id,
+                fecha_cita,
+                duracion_minutos,
+                modalidad,
+                lugar,
+                enlace_video,
+                notas_psicologo,
+                estado
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pendiente')
+            RETURNING id
+        """, (
+            psicologo['id'],
+            data['paciente_id'],
+            data['fecha_cita'],
+            data['duracion'],
+            data['modalidad'],
+            data.get('lugar'),
+            data.get('enlace_video'),
+            data.get('notas')
+        ))
+
+        cita = cur.fetchone()
+
+        conn.commit()
+
+        crear_recordatorio(cita['id'])
+
+        return jsonify({
+            'success': True,
+            'cita_id': cita['id']
+        })
+
+    except Exception as e:
+        conn.rollback()
+        print("ERROR CREAR CITA:", e)
+
+        return jsonify({
+            'error': 'Error al crear la cita'
+        }), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+# ============================================
+# Rutas mis CITAS
+# ============================================
 
 @app.route('/api/citas/mis_citas')
 @login_required
 def api_mis_citas():
+
     if current_user.tipo_usuario != 'psicologo':
         return jsonify({'error': 'No autorizado'}), 403
-    
-    cur = mysql.connection.cursor(dictionary=True)
-    cur.execute("""
-        SELECT c.*, u.nombre as paciente_nombre,
-               DATE_FORMAT(c.fecha_cita, '%%d/%%m/%%Y %%H:%%i') as fecha_formateada
-        FROM citas c
-        JOIN usuarios u ON c.usuario_id = u.id
-        WHERE c.psicologo_id = (SELECT id FROM psicologos WHERE usuario_id = %s)
-        ORDER BY c.fecha_cita DESC
-    """, (current_user.id,))
-    
-    citas = cur.fetchall()
-    cur.close()
-    
-    return jsonify({'citas': citas})
 
+    conn = get_db_connection()
+    cur = get_cursor(conn)
 
+    try:
+
+        cur.execute("""
+            SELECT
+                c.*,
+                u.nombre as paciente_nombre,
+                TO_CHAR(
+                    c.fecha_cita,
+                    'DD/MM/YYYY HH24:MI'
+                ) as fecha_formateada
+
+            FROM citas c
+
+            JOIN usuarios u
+                ON c.usuario_id = u.id
+
+            WHERE c.psicologo_id = (
+                SELECT id
+                FROM psicologos
+                WHERE usuario_id = %s
+            )
+
+            ORDER BY c.fecha_cita DESC
+        """, (current_user.id,))
+
+        citas = cur.fetchall()
+
+        return jsonify({
+            'citas': [dict(c) for c in citas]
+        })
+
+    except Exception as e:
+
+        print("ERROR MIS CITAS:", e)
+
+        return jsonify({
+            'error': 'Error cargando citas'
+        }), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+# ============================================
+# Rutas usuario_citas
+# ============================================
 @app.route('/api/citas/usuario/citas')
 @login_required
 def api_usuario_citas():
-    cur = mysql.connection.cursor(dictionary=True)
-    cur.execute("""
-        SELECT c.*, u.nombre as psicologo_nombre,
-               DATE_FORMAT(c.fecha_cita, '%%d/%%m/%%Y %%H:%%i') as fecha_formateada
-        FROM citas c
-        JOIN psicologos p ON c.psicologo_id = p.id
-        JOIN usuarios u ON p.usuario_id = u.id
-        WHERE c.usuario_id = %s
-        ORDER BY c.fecha_cita DESC
-    """, (current_user.id,))
-    
-    citas = cur.fetchall()
-    cur.close()
-    
-    return jsonify({'citas': citas})
 
+    conn = get_db_connection()
+    cur = get_cursor(conn)
+
+    try:
+
+        cur.execute("""
+            SELECT
+                c.*,
+                u.nombre as psicologo_nombre,
+
+                TO_CHAR(
+                    c.fecha_cita,
+                    'DD/MM/YYYY HH24:MI'
+                ) as fecha_formateada
+
+            FROM citas c
+
+            JOIN psicologos p
+                ON c.psicologo_id = p.id
+
+            JOIN usuarios u
+                ON p.usuario_id = u.id
+
+            WHERE c.usuario_id = %s
+
+            ORDER BY c.fecha_cita DESC
+        """, (current_user.id,))
+
+        citas = cur.fetchall()
+
+        return jsonify({
+            'citas': [dict(c) for c in citas]
+        })
+
+    except Exception as e:
+
+        print("ERROR USUARIO CITAS:", e)
+
+        return jsonify({
+            'error': 'Error cargando citas'
+        }), 500
+
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/api/citas/completar/<int:cita_id>', methods=['POST'])
 @login_required
 def api_completar_cita(cita_id):
+
     if current_user.tipo_usuario != 'psicologo':
         return jsonify({'error': 'No autorizado'}), 403
-    
-    cur = mysql.connection.cursor()
-    cur.execute("""
-        UPDATE citas SET estado = 'completada' 
-        WHERE id = %s AND psicologo_id = (SELECT id FROM psicologos WHERE usuario_id = %s)
-    """, (cita_id, current_user.id))
-    
-    # Registrar asistencia
-    cur.execute("INSERT INTO asistencia_citas (cita_id, asistio) VALUES (%s, TRUE)", (cita_id,))
-    
-    mysql.connection.commit()
-    cur.close()
-    
-    return jsonify({'success': True})
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+
+        # Completar cita
+        cur.execute("""
+            UPDATE citas
+            SET estado = 'completada'
+            WHERE id = %s
+            AND psicologo_id = (
+                SELECT id
+                FROM psicologos
+                WHERE usuario_id = %s
+            )
+        """, (cita_id, current_user.id))
+
+        # Registrar asistencia
+        cur.execute("""
+            INSERT INTO asistencia_citas (
+                cita_id,
+                asistio
+            )
+            VALUES (%s, TRUE)
+        """, (cita_id,))
+
+        conn.commit()
+
+        return jsonify({
+            'success': True
+        })
+
+    except Exception as e:
+
+        conn.rollback()
+
+        print("ERROR COMPLETAR CITA:", e)
+
+        return jsonify({
+            'error': 'Error al completar la cita'
+        }), 500
+
+    finally:
+
+        cur.close()
+        conn.close()
 
 
 # ============================================
@@ -894,44 +1034,96 @@ def api_completar_cita(cita_id):
 def api_recetar_medicamento():
     if current_user.tipo_usuario != 'psicologo':
         return jsonify({'error': 'No autorizado'}), 403
-    
+
     data = request.get_json()
-    
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT id FROM psicologos WHERE usuario_id = %s", (current_user.id,))
-    psicologo = cur.fetchone()
-    
-    cur.execute("""
-        INSERT INTO medicamentos (usuario_id, psicologo_id, nombre_medicamento, 
-                                  dosis, frecuencia, duracion_dias, instrucciones, fecha_inicio)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, CURDATE())
-    """, (data['paciente_id'], psicologo['id'], data['nombre_medicamento'],
-          data['dosis'], data['frecuencia'], data.get('duracion_dias'), data.get('instrucciones')))
-    
-    mysql.connection.commit()
-    cur.close()
-    
+
+    conn = get_db_connection()
+    cur = get_cursor(conn)
+
+    try:
+        # Obtener ID del psicólogo
+        cur.execute("""
+            SELECT id
+            FROM psicologos
+            WHERE usuario_id = %s
+        """, (current_user.id,))
+
+        psicologo = cur.fetchone()
+
+        if not psicologo:
+            return jsonify({'error': 'Psicólogo no encontrado'}), 404
+
+        # Insertar medicamento
+        cur.execute("""
+            INSERT INTO medicamentos (
+                usuario_id,
+                psicologo_id,
+                nombre_medicamento,
+                dosis,
+                frecuencia,
+                duracion_dias,
+                instrucciones,
+                fecha_inicio
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_DATE)
+        """, (
+            data['paciente_id'],
+            psicologo['id'],
+            data['nombre_medicamento'],
+            data['dosis'],
+            data['frecuencia'],
+            data.get('duracion_dias'),
+            data.get('instrucciones')
+        ))
+
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+        print("ERROR EN api_recetar_medicamento:", e)
+        return jsonify({'error': 'Error al recetar medicamento'}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
     return jsonify({'success': True})
 
 
 @app.route('/api/medicamentos/usuario')
 @login_required
 def api_medicamentos_usuario():
-    cur = mysql.connection.cursor(dictionary=True)
-    cur.execute("""
-        SELECT m.*, u.nombre as psicologo_nombre,
-               DATE_FORMAT(m.fecha_receta, '%%d/%%m/%%Y') as fecha_receta
-        FROM medicamentos m
-        JOIN psicologos p ON m.psicologo_id = p.id
-        JOIN usuarios u ON p.usuario_id = u.id
-        WHERE m.usuario_id = %s AND m.estado = 'activo'
-        ORDER BY m.fecha_receta DESC
-    """, (current_user.id,))
-    
-    medicamentos = cur.fetchall()
-    cur.close()
-    
-    return jsonify({'medicamentos': medicamentos})
+
+    conn = get_db_connection()
+    cur = get_cursor(conn)
+
+    try:
+        cur.execute("""
+            SELECT 
+                m.*,
+                u.nombre AS psicologo_nombre,
+                TO_CHAR(m.fecha_receta, 'DD/MM/YYYY') AS fecha_receta_formateada
+            FROM medicamentos m
+            JOIN psicologos p ON m.psicologo_id = p.id
+            JOIN usuarios u ON p.usuario_id = u.id
+            WHERE m.usuario_id = %s
+              AND m.estado = 'activo'
+            ORDER BY m.fecha_receta DESC
+        """, (current_user.id,))
+
+        medicamentos = cur.fetchall()
+
+    except Exception as e:
+        print("ERROR EN api_medicamentos_usuario:", e)
+        return jsonify({'error': 'Error al obtener medicamentos'}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+    return jsonify({
+        'medicamentos': [dict(m) for m in medicamentos]
+    })
 
 
 # ============================================
@@ -943,24 +1135,56 @@ def api_medicamentos_usuario():
 def api_guardar_evolucion():
     if current_user.tipo_usuario != 'psicologo':
         return jsonify({'error': 'No autorizado'}), 403
-    
+
     data = request.get_json()
-    
-    cur = mysql.connection.cursor()
-    
-    # Obtener datos de la cita
-    cur.execute("SELECT usuario_id, psicologo_id FROM citas WHERE id = %s", (data['cita_id'],))
-    cita = cur.fetchone()
-    
-    cur.execute("""
-        INSERT INTO evoluciones (cita_id, psicologo_id, usuario_id, resumen, progreso, proximos_pasos)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (data['cita_id'], cita['psicologo_id'], cita['usuario_id'],
-          data['resumen'], data['progreso'], data['proximos_pasos']))
-    
-    mysql.connection.commit()
-    cur.close()
-    
+
+    conn = get_db_connection()
+    cur = get_cursor(conn)
+
+    try:
+        # Obtener datos de la cita
+        cur.execute("""
+            SELECT usuario_id, psicologo_id
+            FROM citas
+            WHERE id = %s
+        """, (data['cita_id'],))
+
+        cita = cur.fetchone()
+
+        if not cita:
+            return jsonify({'error': 'Cita no encontrada'}), 404
+
+        # Guardar evolución
+        cur.execute("""
+            INSERT INTO evoluciones (
+                cita_id,
+                psicologo_id,
+                usuario_id,
+                resumen,
+                progreso,
+                proximos_pasos
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            data['cita_id'],
+            cita['psicologo_id'],
+            cita['usuario_id'],
+            data['resumen'],
+            data['progreso'],
+            data['proximos_pasos']
+        ))
+
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+        print("ERROR EN api_guardar_evolucion:", e)
+        return jsonify({'error': 'Error al guardar evolución'}), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
     return jsonify({'success': True})
 
 
@@ -969,14 +1193,36 @@ def api_guardar_evolucion():
 # ============================================
 
 def crear_recordatorio(cita_id):
-    """Crear recordatorio para la cita"""
-    cur = mysql.connection.cursor()
-    cur.execute("""
-        INSERT INTO recordatorios (cita_id, tipo, horas_antes)
-        VALUES (%s, 'email', 24), (%s, 'email', 1)
-    """, (cita_id, cita_id))
-    mysql.connection.commit()
-    cur.close()
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            INSERT INTO recordatorios (
+                cita_id,
+                tipo,
+                horas_antes
+            )
+
+            VALUES
+                (%s, 'email', 24),
+                (%s, 'email', 1)
+        """, (cita_id, cita_id))
+
+        conn.commit()
+
+    except Exception as e:
+
+        conn.rollback()
+
+        print("ERROR RECORDATORIO:", e)
+
+    finally:
+
+        cur.close()
+        conn.close()
 
 
 # ============================================
@@ -989,19 +1235,38 @@ def gestion_citas():
     if current_user.tipo_usuario != 'psicologo':
         flash('No tienes acceso', 'danger')
         return redirect(url_for('dashboard'))
-    
-    # Obtener lista de pacientes del psicólogo
-    cur = mysql.connection.cursor(dictionary=True)
-    cur.execute("""
-        SELECT DISTINCT u.id, u.nombre
-        FROM conversaciones_chat c
-        JOIN usuarios u ON c.usuario_id = u.id
-        WHERE c.psicologo_id = (SELECT id FROM psicologos WHERE usuario_id = %s)
-    """, (current_user.id,))
-    pacientes = cur.fetchall()
-    cur.close()
-    
-    return render_template('gestion_citas.html', pacientes=pacientes)
+
+    conn = get_db_connection()
+    cur = get_cursor(conn)
+
+    try:
+        # Obtener lista de pacientes del psicólogo
+        cur.execute("""
+            SELECT DISTINCT u.id, u.nombre
+            FROM conversaciones_chat c
+            JOIN usuarios u ON c.usuario_id = u.id
+            WHERE c.psicologo_id = (
+                SELECT id 
+                FROM psicologos 
+                WHERE usuario_id = %s
+            )
+        """, (current_user.id,))
+
+        pacientes = cur.fetchall()
+
+    except Exception as e:
+        print("ERROR EN GESTION_CITAS:", e)
+        pacientes = []
+        flash('Error al cargar los pacientes', 'danger')
+
+    finally:
+        cur.close()
+        conn.close()
+
+    return render_template(
+        'gestion_citas.html',
+        pacientes=pacientes
+    )
 
 
 @app.route('/mis_citas')
@@ -1019,61 +1284,135 @@ def historial_medico(paciente_id):
         return redirect(url_for('dashboard'))
     
     if current_user.tipo_usuario == 'familiar':
-        # Verificar permiso otorgado por psicólogo
-        cur = mysql.connection.cursor(dictionary=True)
+
+    # Verificar permiso otorgado
+    conn = get_db_connection()
+    cur = get_cursor(conn)
+
+    try:
+
         cur.execute("""
-            SELECT * FROM permisos_historial 
-            WHERE paciente_id = %s AND familiar_id = %s AND estado = 'activo'
+            SELECT *
+            FROM permisos_historial
+
+            WHERE paciente_id = %s
+            AND familiar_id = %s
+            AND estado = 'activo'
         """, (paciente_id, current_user.id))
+
         permiso = cur.fetchone()
+
+    except Exception as e:
+
+        print("ERROR PERMISOS HISTORIAL:", e)
+
+        permiso = None
+
+    finally:
+
         cur.close()
-        
-        if not permiso:
-            flash('No tienes autorización para ver este historial', 'danger')
-            return redirect(url_for('dashboard'))
+        conn.close()
+
+    if not permiso:
+        flash('No tienes autorización para ver este historial', 'danger')
+        return redirect(url_for('dashboard'))
     
     # Obtener datos del paciente
-    cur = mysql.connection.cursor(dictionary=True)
-    cur.execute("SELECT * FROM usuarios WHERE id = %s", (paciente_id,))
+    conn = get_db_connection()
+cur = get_cursor(conn)
+
+try:
+
+    # Paciente
+    cur.execute(
+        "SELECT * FROM usuarios WHERE id = %s",
+        (paciente_id,)
+    )
+
     paciente = cur.fetchone()
-    
-    # Diagnosticos
+
+    # Diagnósticos
     cur.execute("""
-        SELECT h.*, u.nombre as psicologo_nombre,
-               DATE_FORMAT(h.fecha_registro, '%%d/%%m/%%Y') as fecha_registro
+        SELECT
+            h.*,
+            u.nombre as psicologo_nombre,
+
+            TO_CHAR(
+                h.fecha_registro,
+                'DD/MM/YYYY'
+            ) as fecha_registro
+
         FROM historial_medico h
-        JOIN psicologos p ON h.psicologo_id = p.id
-        JOIN usuarios u ON p.usuario_id = u.id
+
+        JOIN psicologos p
+            ON h.psicologo_id = p.id
+
+        JOIN usuarios u
+            ON p.usuario_id = u.id
+
         WHERE h.usuario_id = %s
+
         ORDER BY h.fecha_registro DESC
     """, (paciente_id,))
+
     diagnosticos = cur.fetchall()
-    
+
     # Medicamentos
     cur.execute("""
-        SELECT * FROM medicamentos 
-        WHERE usuario_id = %s AND estado = 'activo'
+        SELECT *
+        FROM medicamentos
+
+        WHERE usuario_id = %s
+        AND estado = 'activo'
+
         ORDER BY fecha_receta DESC
     """, (paciente_id,))
+
     medicamentos = cur.fetchall()
-    
+
     # Evoluciones
     cur.execute("""
-        SELECT e.*, DATE_FORMAT(c.fecha_cita, '%%d/%%m/%%Y') as fecha_cita
+        SELECT
+            e.*,
+
+            TO_CHAR(
+                c.fecha_cita,
+                'DD/MM/YYYY'
+            ) as fecha_cita
+
         FROM evoluciones e
-        JOIN citas c ON e.cita_id = c.id
+
+        JOIN citas c
+            ON e.cita_id = c.id
+
         WHERE e.usuario_id = %s
+
         ORDER BY e.fecha_evolucion DESC
     """, (paciente_id,))
+
     evoluciones = cur.fetchall()
-    
+
+except Exception as e:
+
+    print("ERROR HISTORIAL MEDICO:", e)
+
+    paciente = None
+    diagnosticos = []
+    medicamentos = []
+    evoluciones = []
+
+finally:
+
     cur.close()
-    
-    return render_template('historial_medico.html', 
-                          paciente=paciente, 
-                          diagnosticos=diagnosticos,
-                          medicamentos=medicamentos,
-                          evoluciones=evoluciones)
+    conn.close()
+
+return render_template(
+    'historial_medico.html',
+    paciente=paciente,
+    diagnosticos=diagnosticos,
+    medicamentos=medicamentos,
+    evoluciones=evoluciones
+)
 
 # ==================== CHATBOT API ====================
 
@@ -1156,5 +1495,12 @@ def procesar_mensaje_chatbot(mensaje):
 # RUN
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
+
     port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host="0.0.0.0", port=port)
+
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        debug=False
+    )

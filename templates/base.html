@@ -49,6 +49,35 @@
                                      {% endif %}
                            {% endif %}
                         </li>
+                             <!-- En templates/base.html, dentro del navbar, después de los enlaces existentes -->
+
+<!-- Para psicólogos -->
+{% if current_user.is_authenticated and current_user.tipo_usuario == 'psicologo' %}
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+        <i class="fas fa-calendar-alt"></i> Citas
+    </a>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{{ url_for('gestion_citas') }}">Gestionar Citas</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('mis_citas') }}">Ver Mis Citas</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{{ url_for('historial_medico', paciente_id=current_user.id) }}">📖 Historial Médico</a></li>
+    </ul>
+</li>
+{% endif %}
+
+<!-- Para usuarios normales -->
+{% if current_user.is_authenticated and current_user.tipo_usuario == 'usuario' %}
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+        <i class="fas fa-calendar-check"></i> Mi Agenda
+    </a>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{{ url_for('mis_citas') }}">Mis Citas</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('historial_medico', paciente_id=current_user.id) }}">📖 Mi Historial</a></li>
+    </ul>
+</li>
+{% endif %}
                         {% if current_user.tipo_usuario in ['familiar', 'psicologo'] %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('alertas') }}">
@@ -99,7 +128,7 @@
             </div>
         </div>
     </nav>
-
+                
     <main class="container mt-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
