@@ -1284,135 +1284,143 @@ def historial_medico(paciente_id):
         return redirect(url_for('dashboard'))
     
     if current_user.tipo_usuario == 'familiar':
+@app.route('/historial_medico/<int:paciente_id>')
+@login_required
+def historial_medico(paciente_id):
 
-    # Verificar permiso otorgado
+    # Verificar permisos
+    if current_user.tipo_usuario == 'usuario' and current_user.id != paciente_id:
+        flash('No tienes permiso', 'danger')
+        return redirect(url_for('dashboard'))
+
+    # Verificar permisos familiar
+    if current_user.tipo_usuario == 'familiar':
+
+        conn = get_db_connection()
+        cur = get_cursor(conn)
+
+        try:
+            cur.execute("""
+                SELECT *
+                FROM permisos_historial
+                WHERE paciente_id = %s
+                AND familiar_id = %s
+                AND estado = 'activo'
+            """, (paciente_id, current_user.id))
+
+            permiso = cur.fetchone()
+
+        except Exception as e:
+
+            print("ERROR PERMISOS HISTORIAL:", e)
+            permiso = None
+
+        finally:
+            cur.close()
+            conn.close()
+
+        if not permiso:
+            flash('No tienes autorización para ver este historial', 'danger')
+            return redirect(url_for('dashboard'))
+
+    # =========================
+    # OBTENER DATOS PACIENTE
+    # =========================
+
     conn = get_db_connection()
     cur = get_cursor(conn)
 
     try:
 
+        # Paciente
         cur.execute("""
             SELECT *
-            FROM permisos_historial
+            FROM usuarios
+            WHERE id = %s
+        """, (paciente_id,))
 
-            WHERE paciente_id = %s
-            AND familiar_id = %s
+        paciente = cur.fetchone()
+
+        # Diagnósticos
+        cur.execute("""
+            SELECT
+                h.*,
+                u.nombre AS psicologo_nombre,
+
+                TO_CHAR(
+                    h.fecha_registro,
+                    'DD/MM/YYYY'
+                ) AS fecha_registro_formateada
+
+            FROM historial_medico h
+
+            JOIN psicologos p
+                ON h.psicologo_id = p.id
+
+            JOIN usuarios u
+                ON p.usuario_id = u.id
+
+            WHERE h.usuario_id = %s
+
+            ORDER BY h.fecha_registro DESC
+        """, (paciente_id,))
+
+        diagnosticos = cur.fetchall()
+
+        # Medicamentos
+        cur.execute("""
+            SELECT *
+            FROM medicamentos
+            WHERE usuario_id = %s
             AND estado = 'activo'
-        """, (paciente_id, current_user.id))
+            ORDER BY fecha_receta DESC
+        """, (paciente_id,))
 
-        permiso = cur.fetchone()
+        medicamentos = cur.fetchall()
+
+        # Evoluciones
+        cur.execute("""
+            SELECT
+                e.*,
+
+                TO_CHAR(
+                    c.fecha_cita,
+                    'DD/MM/YYYY'
+                ) AS fecha_cita_formateada
+
+            FROM evoluciones e
+
+            JOIN citas c
+                ON e.cita_id = c.id
+
+            WHERE e.usuario_id = %s
+
+            ORDER BY e.fecha_evolucion DESC
+        """, (paciente_id,))
+
+        evoluciones = cur.fetchall()
 
     except Exception as e:
 
-        print("ERROR PERMISOS HISTORIAL:", e)
+        print("ERROR HISTORIAL MEDICO:", e)
 
-        permiso = None
+        paciente = None
+        diagnosticos = []
+        medicamentos = []
+        evoluciones = []
 
     finally:
 
         cur.close()
         conn.close()
 
-    if not permiso:
-        flash('No tienes autorización para ver este historial', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    # Obtener datos del paciente
-    conn = get_db_connection()
-cur = get_cursor(conn)
-
-try:
-
-    # Paciente
-    cur.execute(
-        "SELECT * FROM usuarios WHERE id = %s",
-        (paciente_id,)
+    return render_template(
+        'historial_medico.html',
+        paciente=paciente,
+        diagnosticos=diagnosticos,
+        medicamentos=medicamentos,
+        evoluciones=evoluciones
     )
-
-    paciente = cur.fetchone()
-
-    # Diagnósticos
-    cur.execute("""
-        SELECT
-            h.*,
-            u.nombre as psicologo_nombre,
-
-            TO_CHAR(
-                h.fecha_registro,
-                'DD/MM/YYYY'
-            ) as fecha_registro
-
-        FROM historial_medico h
-
-        JOIN psicologos p
-            ON h.psicologo_id = p.id
-
-        JOIN usuarios u
-            ON p.usuario_id = u.id
-
-        WHERE h.usuario_id = %s
-
-        ORDER BY h.fecha_registro DESC
-    """, (paciente_id,))
-
-    diagnosticos = cur.fetchall()
-
-    # Medicamentos
-    cur.execute("""
-        SELECT *
-        FROM medicamentos
-
-        WHERE usuario_id = %s
-        AND estado = 'activo'
-
-        ORDER BY fecha_receta DESC
-    """, (paciente_id,))
-
-    medicamentos = cur.fetchall()
-
-    # Evoluciones
-    cur.execute("""
-        SELECT
-            e.*,
-
-            TO_CHAR(
-                c.fecha_cita,
-                'DD/MM/YYYY'
-            ) as fecha_cita
-
-        FROM evoluciones e
-
-        JOIN citas c
-            ON e.cita_id = c.id
-
-        WHERE e.usuario_id = %s
-
-        ORDER BY e.fecha_evolucion DESC
-    """, (paciente_id,))
-
-    evoluciones = cur.fetchall()
-
-except Exception as e:
-
-    print("ERROR HISTORIAL MEDICO:", e)
-
-    paciente = None
-    diagnosticos = []
-    medicamentos = []
-    evoluciones = []
-
-finally:
-
-    cur.close()
-    conn.close()
-
-return render_template(
-    'historial_medico.html',
-    paciente=paciente,
-    diagnosticos=diagnosticos,
-    medicamentos=medicamentos,
-    evoluciones=evoluciones
-)
 
 # ==================== CHATBOT API ====================
 
