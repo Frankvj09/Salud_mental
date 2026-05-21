@@ -88,7 +88,7 @@
         
         document.getElementById('tratamientos').innerHTML = data.medicamentos.map(med => `
             <div class="alert alert-success">
-                <strong>💊 ${med.nombre_medicamento}</strong>
+                <strong>${med.nombre_medicamento}</strong>
                 <p>Dosis: ${med.dosis} - Frecuencia: ${med.frecuencia}</p>
                 <p>Instrucciones: ${med.instrucciones}</p>
                 <small>Prescrito por: ${med.psicologo_nombre} - ${med.fecha_receta}</small>

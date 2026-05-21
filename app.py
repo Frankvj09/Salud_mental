@@ -155,22 +155,37 @@ def logout():
     return redirect(url_for('index'))
 
 # DIRECTORIO
+# DIRECTORIO
 @app.route('/directorio_psicologos')
 def directorio_psicologos():
     conn = get_db_connection()
     cur = get_cursor(conn)
+
     cur.execute("""
-        SELECT u.nombre, p.especialidad, p.descripcion, p.calificacion_promedio,
-               d.direccion_consulta, d.ciudad, d.modalidad
+        SELECT 
+            p.id,
+            u.nombre,
+            p.especialidad,
+            p.descripcion,
+            p.calificacion_promedio,
+            d.direccion_consulta,
+            d.ciudad,
+            d.modalidad
         FROM psicologos p
         JOIN usuarios u ON p.usuario_id = u.id
         LEFT JOIN directorio_psicologos d ON p.id = d.psicologo_id
         WHERE u.tipo_usuario = 'psicologo'
     """)
+
     psicologos = cur.fetchall()
+
     cur.close()
     conn.close()
-    return render_template('directoriopsicologos.html', psicologos=psicologos)
+
+    return render_template(
+        'directoriopsicologos.html',
+        psicologos=psicologos
+    )
 
 # CHAT
 @app.route('/chat')

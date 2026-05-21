@@ -20,6 +20,7 @@
                     <div class="col-md-4">
                         <input type="text" class="form-control" id="buscarNombre" placeholder="Nombre o especialidad">
                     </div>
+
                     <div class="col-md-3">
                         <select class="form-select" id="filtroCiudad">
                             <option value="">Todas las ciudades</option>
@@ -29,6 +30,7 @@
                             <option>La Serena</option>
                         </select>
                     </div>
+
                     <div class="col-md-3">
                         <select class="form-select" id="filtroModalidad">
                             <option value="">Todas las modalidades</option>
@@ -37,6 +39,7 @@
                             <option value="ambas">Ambas</option>
                         </select>
                     </div>
+
                     <div class="col-md-2">
                         <button class="btn btn-primary w-100" onclick="filtrarPsicologos()">
                             <i class="fas fa-filter"></i> Filtrar
@@ -49,143 +52,270 @@
 </div>
 
 <div class="row" id="listaPsicologos">
+
     {% if psicologos %}
+
         {% for psicologo in psicologos %}
-        <div class="col-md-6 mb-4 psicologo-item" 
-             data-nombre="{{ psicologo.nombre|lower }}" 
-             data-especialidad="{{ psicologo.especialidad|lower }}"
-             data-ciudad="{{ psicologo.ciudad|default('')|lower }}"
-             data-modalidad="{{ psicologo.modalidad|default('')|lower }}">
+
+        <div class="col-md-6 mb-4 psicologo-item"
+
+             data-nombre="{{ (psicologo['nombre'] or '')|lower }}"
+             data-especialidad="{{ (psicologo['especialidad'] or '')|lower }}"
+             data-ciudad="{{ (psicologo['ciudad'] or '')|lower }}"
+             data-modalidad="{{ (psicologo['modalidad'] or '')|lower }}">
+
             <div class="card h-100">
+
                 <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">{{ psicologo['nombre'] }}</h5>
+                    <h5 class="mb-0">
+                        {{ psicologo['nombre'] }}
+                    </h5>
                 </div>
+
                 <div class="card-body">
+
                     <div class="row">
+
                         <div class="col-md-8">
-                            <p><strong>Especialidad:</strong> {{ psicologo['especialidad'] }}</p>
-                            <p><strong>Descripción:</strong> {{ (psicologo.descripcion or 'Sin descripción disponible')|truncate(100) }}</p>
+
+                            <p>
+                                <strong>Especialidad:</strong>
+                                {{ psicologo['especialidad'] }}
+                            </p>
+
+                            <p>
+                                <strong>Descripción:</strong>
+                                {{ (psicologo['descripcion'] or 'Sin descripción disponible')|truncate(100) }}
+                            </p>
+
                             <p>
                                 <strong>Calificación:</strong>
+
                                 {% for i in range(5) %}
-                                    {% if i < psicologo.calificacion_promedio|int %}
+
+                                    {% if i < (psicologo['calificacion_promedio'] or 0)|int %}
                                         <i class="fas fa-star text-warning"></i>
                                     {% else %}
                                         <i class="far fa-star text-warning"></i>
                                     {% endif %}
+
                                 {% endfor %}
-                                ({{ psicologo.calificacion_promedio }})
+
+                                ({{ psicologo['calificacion_promedio'] or 0 }})
                             </p>
+
                         </div>
+
                         <div class="col-md-4">
+
                             <p>
-                                <strong><i class="fas fa-map-marker-alt"></i> Ubicación:</strong><br>
-                                {{ psicologo.direccion_consulta|default('No especificada') }}<br>
-                                {{ psicologo.ciudad|default('Ciudad no especificada') }}
+                                <strong>
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    Ubicación:
+                                </strong>
+                                <br>
+
+                                {{ psicologo['direccion_consulta'] or 'No especificada' }}
+                                <br>
+
+                                {{ psicologo['ciudad'] or 'Ciudad no especificada' }}
                             </p>
+
                             <p>
-                                <strong><i class="fas fa-video"></i> Modalidad:</strong><br>
-                                {% if psicologo.modalidad == 'online' %}
+                                <strong>
+                                    <i class="fas fa-video"></i>
+                                    Modalidad:
+                                </strong>
+                                <br>
+
+                                {% if psicologo['modalidad'] == 'online' %}
+
                                     <span class="badge bg-success">Online</span>
-                                {% elif psicologo.modalidad == 'presencial' %}
+
+                                {% elif psicologo['modalidad'] == 'presencial' %}
+
                                     <span class="badge bg-primary">Presencial</span>
-                                {% elif psicologo.modalidad == 'ambas' %}
+
+                                {% elif psicologo['modalidad'] == 'ambas' %}
+
                                     <span class="badge bg-info">Online/Presencial</span>
+
                                 {% else %}
-                                    <span class="badge bg-secondary">No especificado</span>
+
+                                    <span class="badge bg-secondary">
+                                        No especificado
+                                    </span>
+
                                 {% endif %}
                             </p>
+
                         </div>
+
                     </div>
+
                 </div>
+
                 <div class="card-footer bg-white">
+
                     {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('iniciar_chat', psicologo_id=psicologo['id']) }}" class="btn btn-success"></a>
-                            <i class="fas fa-comment"></i> Contactar
+
+                        <a href="{{ url_for('iniciar_chat', psicologo_id=psicologo['id']) }}"
+                           class="btn btn-success">
+
+                            <i class="fas fa-comment"></i>
+                            Contactar
+
                         </a>
+
                     {% else %}
-                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-sign-in-alt"></i> Inicia sesión para contactar
+
+                        <a href="{{ url_for('login') }}"
+                           class="btn btn-outline-primary">
+
+                            <i class="fas fa-sign-in-alt"></i>
+                            Inicia sesión para contactar
+
                         </a>
+
                     {% endif %}
-                    <button class="btn btn-outline-info float-end" onclick="verDetalle(this)">
-                        <i class="fas fa-info-circle"></i> Ver más
+
+                    <button class="btn btn-outline-info float-end"
+                            onclick="verDetalle(this)">
+
+                        <i class="fas fa-info-circle"></i>
+                        Ver más
+
                     </button>
+
                 </div>
+
             </div>
+
         </div>
+
         {% endfor %}
+
     {% else %}
+
         <div class="col-12">
+
             <div class="alert alert-info">
+
                 <i class="fas fa-info-circle"></i>
+
                 No hay psicólogos registrados en el directorio.
+
             </div>
+
         </div>
+
     {% endif %}
+
 </div>
 
 <!-- Modal para ver detalles -->
+
 <div class="modal fade" id="detallePsicologoModal" tabindex="-1">
+
     <div class="modal-dialog modal-lg">
+
         <div class="modal-content">
+
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Detalles del Psicólogo</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+
+                <h5 class="modal-title">
+                    Detalles del Psicólogo
+                </h5>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal">
+                </button>
+
             </div>
-            <div class="modal-body" id="detallePsicologoContent">
-                <!-- Se llena con JavaScript -->
+
+            <div class="modal-body"
+                 id="detallePsicologoContent">
+
             </div>
+
         </div>
+
     </div>
+
 </div>
 
 {% endblock %}
 
 {% block scripts %}
+
 <script>
-    function filtrarPsicologos() {
-        let nombre = document.getElementById('buscarNombre').value.toLowerCase();
-        let ciudad = document.getElementById('filtroCiudad').value.toLowerCase();
-        let modalidad = document.getElementById('filtroModalidad').value.toLowerCase();
-        
-        let items = document.querySelectorAll('.psicologo-item');
-        
-        items.forEach(function(item) {
-            let itemNombre = item.getAttribute('data-nombre') + ' ' + item.getAttribute('data-especialidad');
-            let itemCiudad = item.getAttribute('data-ciudad');
-            let itemModalidad = item.getAttribute('data-modalidad');
-            
-            let mostrar = true;
-            
-            if (nombre && !itemNombre.includes(nombre)) {
-                mostrar = false;
-            }
-            if (ciudad && !itemCiudad.includes(ciudad)) {
-                mostrar = false;
-            }
-            if (modalidad && !itemModalidad.includes(modalidad)) {
-                mostrar = false;
-            }
-            
-            item.style.display = mostrar ? 'block' : 'none';
-        });
-    }
-    
-    function verDetalle(button) {
-        let card = button.closest('.psicologo-item');
-        let nombre = card.querySelector('h5').textContent;
-        let especialidad = card.querySelector('p strong').nextSibling.textContent;
-        
-        let modalBody = document.getElementById('detallePsicologoContent');
-        modalBody.innerHTML = `
-            <h4>${nombre}</h4>
-            <p><strong>Especialidad:</strong> ${especialidad}</p>
-            <p>Más información disponible próximamente...</p>
-        `;
-        
-        let modal = new bootstrap.Modal(document.getElementById('detallePsicologoModal'));
-        modal.show();
-    }
+
+function filtrarPsicologos() {
+
+    let nombre = document.getElementById('buscarNombre').value.toLowerCase();
+
+    let ciudad = document.getElementById('filtroCiudad').value.toLowerCase();
+
+    let modalidad = document.getElementById('filtroModalidad').value.toLowerCase();
+
+    let items = document.querySelectorAll('.psicologo-item');
+
+    items.forEach(function(item) {
+
+        let itemNombre =
+            item.getAttribute('data-nombre') + ' ' +
+            item.getAttribute('data-especialidad');
+
+        let itemCiudad =
+            item.getAttribute('data-ciudad');
+
+        let itemModalidad =
+            item.getAttribute('data-modalidad');
+
+        let mostrar = true;
+
+        if (nombre && !itemNombre.includes(nombre)) {
+            mostrar = false;
+        }
+
+        if (ciudad && !itemCiudad.includes(ciudad)) {
+            mostrar = false;
+        }
+
+        if (modalidad && !itemModalidad.includes(modalidad)) {
+            mostrar = false;
+        }
+
+        item.style.display = mostrar ? 'block' : 'none';
+
+    });
+
+}
+
+function verDetalle(button) {
+
+    let card = button.closest('.psicologo-item');
+
+    let nombre =
+        card.querySelector('h5').textContent;
+
+    let modalBody =
+        document.getElementById('detallePsicologoContent');
+
+    modalBody.innerHTML = `
+        <h4>${nombre}</h4>
+        <p>Más información disponible próximamente...</p>
+    `;
+
+    let modal = new bootstrap.Modal(
+        document.getElementById('detallePsicologoModal')
+    );
+
+    modal.show();
+
+}
+
 </script>
+
 {% endblock %}
