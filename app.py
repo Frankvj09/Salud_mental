@@ -1278,15 +1278,6 @@ def mis_citas():
 @app.route('/historial_medico/<int:paciente_id>')
 @login_required
 def historial_medico(paciente_id):
-    # Verificar permisos
-    if current_user.tipo_usuario == 'usuario' and current_user.id != paciente_id:
-        flash('No tienes permiso', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    if current_user.tipo_usuario == 'familiar':
-@app.route('/historial_medico/<int:paciente_id>')
-@login_required
-def historial_medico(paciente_id):
 
     # Verificar permisos
     if current_user.tipo_usuario == 'usuario' and current_user.id != paciente_id:
