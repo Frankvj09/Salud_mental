@@ -155,7 +155,6 @@ def logout():
     return redirect(url_for('index'))
 
 # DIRECTORIO
-# DIRECTORIO
 @app.route('/directorio_psicologos')
 def directorio_psicologos():
     conn = get_db_connection()
@@ -178,6 +177,8 @@ def directorio_psicologos():
     """)
 
     psicologos = cur.fetchall()
+
+    print(psicologos)  # para verificar
 
     cur.close()
     conn.close()
