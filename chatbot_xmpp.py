@@ -17,7 +17,7 @@ class MentalHealthBot(slixmpp.ClientXMPP):
         
         # Respuestas del bot
         self.respuestas = {
-            'saludo': [
+            'Hola': [
                 "¡Hola! Soy el asistente virtual de salud mental. ¿Cómo te sientes hoy?",
                 "Hola, estoy aquí para escucharte. ¿Qué te preocupa?",
                 "Bienvenido. Recuerda que no estás solo. ¿En qué puedo ayudarte?"
